@@ -1,0 +1,61 @@
+"use client";
+
+import Link from "next/link";
+import { useEffect } from "react";
+import { ConversationAvatar } from "@/components/Avatar";
+import { useSession } from "@/components/session";
+import type { Conversation } from "@/lib/api";
+import { conversationTitle, otherMember } from "@/lib/conversations";
+import { lastSeenText } from "@/lib/time";
+import { useAppStore } from "@/store/app";
+
+function subtitle(conversation: Conversation, meId: number): string | null {
+  if (conversation.type === "group") {
+    const n = conversation.members.length;
+    return `${n} member${n === 1 ? "" : "s"}`;
+  }
+  return lastSeenText(otherMember(conversation, meId)?.last_seen ?? null);
+}
+
+export function ChatView({ id }: { id: string }) {
+  const { me } = useSession();
+  const conversationId = /^\d+$/.test(id) ? Number(id) : null;
+  const status = useAppStore((s) => s.status);
+  const conversation = useAppStore((s) => s.conversations.find((c) => c.id === conversationId));
+  const setActiveConversation = useAppStore((s) => s.setActiveConversation);
+
+  // Highlights this chat in the sidebar while it is open.
+  useEffect(() => {
+    setActiveConversation(conversationId);
+    return () => setActiveConversation(null);
+  }, [conversationId, setActiveConversation]);
+
+  if (!conversation) {
+    if (conversationId !== null && status !== "ready" && status !== "error") return null; // still loading
+    return (
+      <div className="flex flex-1 flex-col items-center justify-center gap-2 p-8 text-center">
+        <p className="text-header font-semibold text-fg">Chat not found</p>
+        <p className="text-body-sm text-fg-secondary">It doesn&apos;t exist or you&apos;re not a member.</p>
+        <Link href="/" className="mt-2 text-body-sm font-medium text-accent hover:underline">
+          Back to chats
+        </Link>
+      </div>
+    );
+  }
+
+  const sub = subtitle(conversation, me.id);
+  return (
+    <div className="flex min-h-0 flex-1 flex-col">
+      <header className="flex h-header shrink-0 items-center gap-3 border-b border-border px-pane-x">
+        <ConversationAvatar conversation={conversation} meId={me.id} size="header" />
+        <div className="min-w-0">
+          <h2 className="truncate text-header font-semibold text-fg">{conversationTitle(conversation, me.id)}</h2>
+          {sub && <p className="truncate text-caption text-fg-secondary">{sub}</p>}
+        </div>
+      </header>
+      <div className="flex flex-1 items-center justify-center p-8">
+        <p className="text-body-sm text-fg-tertiary">Messages arrive in Phase 3</p>
+      </div>
+    </div>
+  );
+}

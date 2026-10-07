@@ -12,6 +12,70 @@ export type User = {
 
 export type AuthResult = { token: string; user: User; is_new: boolean };
 
+export type Contact = {
+  id: number;
+  user_id: number;
+  phone: string;
+  display_name: string;
+  avatar: string | null;
+  nickname: string | null;
+  last_seen: string | null;
+};
+
+export type SystemAction =
+  | "group_created"
+  | "member_added"
+  | "member_removed"
+  | "member_left"
+  | "renamed"
+  | "role_changed";
+
+export type SystemMeta = {
+  action: SystemAction;
+  actor_id: number;
+  target_id?: number;
+  name?: string;
+  role?: "admin" | "member";
+};
+
+export type Message = {
+  id: number;
+  conversation_id: number;
+  sender_id: number;
+  type: "text" | "system";
+  body: string | null;
+  meta: SystemMeta | null;
+  reply_to: { id: number; sender_id: number; type: "text" | "system"; body: string | null } | null;
+  client_id: string | null;
+  created_at: string;
+};
+
+export type Member = {
+  user_id: number;
+  display_name: string;
+  avatar: string | null;
+  phone: string;
+  nickname: string | null; // the viewer's nickname for this member
+  role: "admin" | "member";
+  online: boolean;
+  last_seen: string | null;
+  last_delivered: number;
+  last_read: number;
+};
+
+export type Conversation = {
+  id: number;
+  type: "direct" | "group";
+  name: string | null;
+  avatar: string | null;
+  created_at: string;
+  unread_count: number;
+  last_message: Message | null;
+  members: Member[];
+};
+
+export type SearchResult = { contacts: Contact[]; conversations: Conversation[] };
+
 export class ApiError extends Error {
   readonly status: number;
 
@@ -68,3 +132,15 @@ export const getMe = () => api<User>("/me");
 
 export const updateMe = (changes: { display_name?: string; avatar?: string | null }) =>
   api<User>("/me", { method: "PUT", body: changes });
+
+export const listContacts = () => api<Contact[]>("/contacts");
+
+export const addContact = (phone: string, nickname: string | null) =>
+  api<Contact>("/contacts", { method: "POST", body: { phone, nickname } });
+
+export const listConversations = () => api<Conversation[]>("/conversations");
+
+export const openDirect = (userId: number) =>
+  api<Conversation>("/conversations/direct", { method: "POST", body: { user_id: userId } });
+
+export const search = (q: string) => api<SearchResult>(`/search?q=${encodeURIComponent(q)}`);

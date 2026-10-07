@@ -1,13 +1,13 @@
 from datetime import timedelta
 
 import jwt
-from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.config import settings
 from app.db import utcnow
 from app.models import User
 from app.services.errors import InvalidOtp
+from app.services.users import get_or_create_by_phone
 
 FIXED_OTP = "123456"  # mocked SMS: every number accepts this code
 TOKEN_TTL = timedelta(days=7)
@@ -22,13 +22,7 @@ def verify_otp(db: Session, phone: str, otp: str) -> tuple[User, bool]:
     """Check the code and get-or-create the user. Returns (user, is_new)."""
     if otp != FIXED_OTP:
         raise InvalidOtp()
-    user = db.scalar(select(User).where(User.phone == phone))
-    if user is not None:
-        return user, False
-    user = User(phone=phone, display_name="")
-    db.add(user)
-    db.commit()
-    return user, True
+    return get_or_create_by_phone(db, phone)
 
 
 def create_token(user_id: int, ttl: timedelta = TOKEN_TTL) -> str:

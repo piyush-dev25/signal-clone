@@ -7,14 +7,17 @@ from fastapi.responses import JSONResponse
 
 import app.models  # noqa: F401  (registers every table on Base.metadata)
 from app.config import settings
-from app.db import Base, engine
-from app.routers import auth, health, me, ws
+from app.db import Base, SessionLocal, engine
+from app.routers import auth, contacts, conversations, health, me, search, ws
+from app.seed import run_seed
 from app.services.errors import ServiceError
 
 
 @asynccontextmanager
 async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
     Base.metadata.create_all(engine)
+    with SessionLocal() as db:
+        run_seed(db)  # no-op once any user exists
     yield
 
 
@@ -37,4 +40,7 @@ async def service_error_handler(_request: Request, exc: ServiceError) -> JSONRes
 app.include_router(health.router)
 app.include_router(auth.router)
 app.include_router(me.router)
+app.include_router(contacts.router)
+app.include_router(conversations.router)
+app.include_router(search.router)
 app.include_router(ws.router)

@@ -1,14 +1,16 @@
 "use client";
 
-// Auth gate + the app's single WebSocket. Living in the (app) layout means the socket
-// survives switching between chats. Store and sidebar join it in Phase 2.
+// Auth gate, the app's single WebSocket, the store load and the sidebar. Living in the (app)
+// layout means all of them survive switching between chats.
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
-import { Avatar } from "@/components/Avatar";
 import { SessionContext } from "@/components/session";
+import { Sidebar } from "@/components/Sidebar";
+import { Button } from "@/components/ui";
 import { ApiError, type User, getMe } from "@/lib/api";
 import { clearToken, getToken, redirectToLogin } from "@/lib/auth";
 import { openSocket } from "@/lib/ws";
+import { useAppStore } from "@/store/app";
 
 type GateState = { status: "loading" } | { status: "error"; message: string } | { status: "ready"; me: User };
 
@@ -34,6 +36,7 @@ export default function AppLayout({ children }: LayoutProps<"/">) {
         }
         socketRef.current = openSocket(token);
         setState({ status: "ready", me });
+        useAppStore.getState().load();
       })
       .catch((err: unknown) => {
         // 401 is handled in api.ts (token cleared, redirected to /login).
@@ -57,43 +60,31 @@ export default function AppLayout({ children }: LayoutProps<"/">) {
 
   if (state.status === "error") {
     return (
-      <div className="flex flex-1 flex-col items-center justify-center gap-3 p-8 text-sm">
-        <p className="text-gray-600">{state.message}</p>
-        <button
+      <div className="flex flex-1 flex-col items-center justify-center gap-3 p-8">
+        <p className="text-body text-fg-secondary">{state.message}</p>
+        <Button
+          variant="secondary"
           onClick={() => {
             setState({ status: "loading" });
             setAttempt((n) => n + 1);
           }}
-          className="rounded-lg border border-gray-300 px-4 py-1.5 hover:bg-gray-50"
         >
           Retry
-        </button>
+        </Button>
       </div>
     );
   }
 
   if (state.status === "loading") {
-    return <div className="flex flex-1 items-center justify-center text-sm text-gray-400">Loading…</div>;
+    return <div className="flex flex-1 items-center justify-center text-body-sm text-fg-tertiary">Loading…</div>;
   }
 
   const { me } = state;
   return (
     <SessionContext.Provider value={{ me, logout }}>
-      <div className="flex flex-1 flex-col">
-        <header className="flex items-center gap-3 border-b border-gray-200 px-4 py-2">
-          <Avatar userId={me.id} name={me.display_name} avatar={me.avatar} size={36} />
-          <div className="min-w-0 flex-1">
-            <p className="truncate text-sm font-medium">{me.display_name}</p>
-            <p className="truncate text-xs text-gray-500">{me.phone}</p>
-          </div>
-          <button
-            onClick={logout}
-            className="rounded-lg border border-gray-300 px-3 py-1 text-sm hover:bg-gray-50"
-          >
-            Log out
-          </button>
-        </header>
-        <div className="flex flex-1">{children}</div>
+      <div className="flex h-dvh w-full overflow-hidden bg-surface text-fg">
+        <Sidebar />
+        <main className="flex min-w-0 flex-1 flex-col">{children}</main>
       </div>
     </SessionContext.Provider>
   );

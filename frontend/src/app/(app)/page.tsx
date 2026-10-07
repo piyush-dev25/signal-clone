@@ -1,12 +1,11 @@
-import Link from "next/link";
+import { ChatIcon } from "@/components/icons";
 
 export default function EmptyChatPane() {
   return (
-    <main className="flex flex-1 flex-col items-center justify-center gap-2 p-8">
-      <p className="text-sm opacity-70">No chat selected</p>
-      <Link href="/status" className="text-sm text-blue-600 underline">
-        Phase 0 connectivity check
-      </Link>
-    </main>
+    <div className="flex flex-1 flex-col items-center justify-center gap-3 p-8 text-center">
+      <ChatIcon className="size-16 text-fg-tertiary" />
+      <p className="text-title text-fg">Signal</p>
+      <p className="text-body-sm text-fg-secondary">Select a chat to start messaging</p>
+    </div>
   );
 }

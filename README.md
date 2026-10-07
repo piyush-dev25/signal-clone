@@ -32,3 +32,16 @@ npm run dev
 ```
 
 Open http://localhost:3000/status for the connectivity check (REST health + WebSocket echo).
+
+## Test logins
+
+The backend seeds demo users, chats and groups on boot when the database is empty
+(delete `backend/signal.db` locally to reseed). OTP is mocked: the code is always **123456**.
+
+| User | Phone |
+|---|---|
+| Priya Sharma (main demo user, group admin) | +91 98765 43210 |
+| Rahul Verma | +91 98123 45678 |
+| Ananya Iyer | +91 98989 89898 |
+
+Open two browsers (or a normal and a private window) and log in as different users.

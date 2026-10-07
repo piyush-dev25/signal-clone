@@ -1,18 +1,172 @@
 @import "tailwindcss";
 
-/* Signal design tokens (light/dark) land here in Phase 2. */
+/*
+ * Signal Desktop design tokens. Components use only these (via Tailwind utilities or var()),
+ * so a fidelity pass can retune values here without touching component structure.
+ *
+ * Colors are theme-dependent raw variables (--sg-*) mapped into Tailwind below.
+ * Dark mode = `.dark` on <html>, set from prefers-color-scheme by the script in app/layout.tsx.
+ */
+
+@custom-variant dark (&:where(.dark, .dark *));
+
 :root {
-  --background: #ffffff;
-  --foreground: #1b1b1b;
+  color-scheme: light;
+
+  --sg-surface: #ffffff; /* conversation pane */
+  --sg-sidebar: #ffffff;
+  --sg-hover: #e9e9e9;
+  --sg-selected: #dedede;
+  --sg-input: #e9e9e9;
+  --sg-dialog: #ffffff;
+  --sg-menu: #ffffff;
+  --sg-overlay: rgb(0 0 0 / 0.4);
+  --sg-info: #e3ebfd;
+  --sg-on-info: #1851b4;
+
+  --sg-fg: #1b1b1b;
+  --sg-fg-secondary: #5e5e5e;
+  --sg-fg-tertiary: #848484;
+  --sg-border: #dedede;
+
+  --sg-accent: #2c6bed; /* Signal ultramarine */
+  --sg-accent-hover: #1851b4;
+  --sg-on-accent: #ffffff;
+  --sg-badge: #2c6bed;
+  --sg-on-badge: #ffffff;
+  --sg-danger: #d92d1f;
+
+  --sg-bubble-out: #2c6bed;
+  --sg-on-bubble-out: #ffffff;
+  --sg-bubble-in: #e9e9e9;
+  --sg-on-bubble-in: #1b1b1b;
+
+  --sg-shadow-menu: 0 2px 12px rgb(0 0 0 / 0.16), 0 0 0 1px rgb(0 0 0 / 0.04);
+  --sg-shadow-dialog: 0 8px 32px rgb(0 0 0 / 0.2);
 }
 
+.dark {
+  color-scheme: dark;
+
+  --sg-surface: #121212;
+  --sg-sidebar: #1b1b1b;
+  --sg-hover: #3b3b3b;
+  --sg-selected: #4a4a4a;
+  --sg-input: #2e2e2e;
+  --sg-dialog: #2e2e2e;
+  --sg-menu: #2e2e2e;
+  --sg-overlay: rgb(0 0 0 / 0.6);
+  --sg-info: #1b2a4b;
+  --sg-on-info: #a8c1f7;
+
+  --sg-fg: #e9e9e9;
+  --sg-fg-secondary: #b9b9b9;
+  --sg-fg-tertiary: #848484;
+  --sg-border: #3b3b3b;
+
+  --sg-accent: #2c6bed;
+  --sg-accent-hover: #4a82f0;
+  --sg-on-accent: #ffffff;
+  --sg-badge: #2c6bed;
+  --sg-on-badge: #ffffff;
+  --sg-danger: #ff6f61;
+
+  --sg-bubble-out: #2c6bed;
+  --sg-on-bubble-out: #ffffff;
+  --sg-bubble-in: #3b3b3b;
+  --sg-on-bubble-in: #e9e9e9;
+
+  --sg-shadow-menu: 0 2px 12px rgb(0 0 0 / 0.5), 0 0 0 1px rgb(255 255 255 / 0.06);
+  --sg-shadow-dialog: 0 8px 32px rgb(0 0 0 / 0.6);
+}
+
+/* Theme-dependent colors → bg-surface, text-fg-secondary, border-border, … */
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
+  --color-surface: var(--sg-surface);
+  --color-sidebar: var(--sg-sidebar);
+  --color-hover: var(--sg-hover);
+  --color-selected: var(--sg-selected);
+  --color-input: var(--sg-input);
+  --color-dialog: var(--sg-dialog);
+  --color-menu: var(--sg-menu);
+  --color-overlay: var(--sg-overlay);
+  --color-info: var(--sg-info);
+  --color-on-info: var(--sg-on-info);
+  --color-fg: var(--sg-fg);
+  --color-fg-secondary: var(--sg-fg-secondary);
+  --color-fg-tertiary: var(--sg-fg-tertiary);
+  --color-border: var(--sg-border);
+  --color-accent: var(--sg-accent);
+  --color-accent-hover: var(--sg-accent-hover);
+  --color-on-accent: var(--sg-on-accent);
+  --color-badge: var(--sg-badge);
+  --color-on-badge: var(--sg-on-badge);
+  --color-danger: var(--sg-danger);
+  --color-bubble-out: var(--sg-bubble-out);
+  --color-on-bubble-out: var(--sg-on-bubble-out);
+  --color-bubble-in: var(--sg-bubble-in);
+  --color-on-bubble-in: var(--sg-on-bubble-in);
+
+  --shadow-menu: var(--sg-shadow-menu);
+  --shadow-dialog: var(--sg-shadow-dialog);
+
+  --font-sans: var(--font-inter), "Inter", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+}
+
+/* Theme-independent tokens. `static` keeps every variable emitted, even ones only used via var(). */
+@theme static {
+  /* Type scale: text-title, text-header, text-body, text-body-sm, text-caption, text-badge */
+  --text-title: 20px;
+  --text-title--line-height: 26px;
+  --text-title--font-weight: 600;
+  --text-header: 15px;
+  --text-header--line-height: 20px;
+  --text-body: 14px;
+  --text-body--line-height: 20px;
+  --text-body-sm: 13px;
+  --text-body-sm--line-height: 18px;
+  --text-caption: 12px;
+  --text-caption--line-height: 16px;
+  --text-badge: 11px;
+  --text-badge--line-height: 20px;
+
+  /* Radii: rounded-control, rounded-button, rounded-list-item, rounded-menu, rounded-dialog, rounded-bubble */
+  --radius-control: 6px;
+  --radius-button: 8px;
+  --radius-list-item: 8px;
+  --radius-menu: 8px;
+  --radius-dialog: 12px;
+  --radius-bubble: 18px;
+
+  /* Structural sizes (spacing namespace → w-sidebar, h-header, h-list-item, …) */
+  --spacing-sidebar: 320px;
+  --spacing-header: 52px;
+  --spacing-list-item: 72px;
+  --spacing-contact-item: 56px;
+  --spacing-control: 32px;
+  --spacing-button: 36px;
+  --spacing-icon-button: 32px;
+  --spacing-icon: 20px;
+  --spacing-badge: 20px;
+  --spacing-dialog: 400px;
+  --spacing-menu: 220px;
+  --spacing-list-inset: 8px; /* gap between sidebar edge and a list row */
+  --spacing-row-x: 12px; /* horizontal padding inside a list row */
+  --spacing-pane-x: 16px; /* horizontal padding of headers and panes */
+
+  /* Avatar sizes */
+  --spacing-avatar-list: 48px;
+  --spacing-avatar-contact: 36px;
+  --spacing-avatar-header: 32px;
+  --spacing-avatar-profile: 28px;
+  --spacing-avatar-picker: 44px;
+  --spacing-avatar-hero: 88px;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  background: var(--color-surface);
+  color: var(--color-fg);
+  font-family: var(--font-sans);
+  font-size: var(--text-body);
+  line-height: var(--text-body--line-height);
 }
