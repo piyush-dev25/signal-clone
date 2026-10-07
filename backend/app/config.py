@@ -7,7 +7,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
-    secret_key: str = "dev-secret-change-me"
+    secret_key: str = "dev-only-secret-key-change-me-in-production"
     # Comma-separated list of allowed browser origins.
     cors_origins_raw: str = Field(default="http://localhost:3000", alias="CORS_ORIGINS")
     database_url: str = "sqlite:///./signal.db"

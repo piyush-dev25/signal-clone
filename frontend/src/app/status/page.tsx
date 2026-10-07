@@ -2,6 +2,7 @@
 
 // TEMPORARY Phase 0 connectivity check. Delete once real features exist.
 import { useEffect, useRef, useState } from "react";
+import { getToken } from "@/lib/auth";
 import { API_URL, WS_URL } from "@/lib/config";
 
 type Health = { state: "pending" } | { state: "ok" } | { state: "error"; detail: string };
@@ -11,6 +12,7 @@ export default function StatusPage() {
   const [health, setHealth] = useState<Health>({ state: "pending" });
   const [elapsed, setElapsed] = useState(0);
   const [socketState, setSocketState] = useState<SocketState>("connecting");
+  const [closeCode, setCloseCode] = useState<number | null>(null);
   const [frames, setFrames] = useState<string[]>([]);
   const [text, setText] = useState("hello over ws");
   const socketRef = useRef<WebSocket | null>(null);
@@ -34,14 +36,18 @@ export default function StatusPage() {
   }, []);
 
   useEffect(() => {
-    const ws = new WebSocket(`${WS_URL}?token=phase0`);
+    // Raw socket with the stored token (no 4401 redirect here): logged out shows close code 4401.
+    const ws = new WebSocket(`${WS_URL}?token=${encodeURIComponent(getToken() ?? "")}`);
     socketRef.current = ws;
     ws.onopen = () => {
       setSocketState("open");
       ws.send(JSON.stringify({ type: "ping", data: {} }));
     };
     ws.onmessage = (event) => setFrames((prev) => [...prev, String(event.data)]);
-    ws.onclose = () => setSocketState("closed");
+    ws.onclose = (event) => {
+      setSocketState("closed");
+      setCloseCode(event.code);
+    };
     return () => ws.close();
   }, []);
 
@@ -66,6 +72,7 @@ export default function StatusPage() {
         <p className="opacity-70">{WS_URL}</p>
         <p className={socketState === "open" ? "text-green-600" : socketState === "closed" ? "text-red-600" : ""}>
           state: {socketState}
+          {closeCode !== null && ` (code ${closeCode}${closeCode === 4401 ? ": not logged in" : ""})`}
         </p>
         <div className="flex gap-2">
           <input
