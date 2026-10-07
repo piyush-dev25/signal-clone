@@ -1,0 +1,24 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+*.db
+*.db-shm
+*.db-wal
+
+# Node / Next.js (frontend/.gitignore has the rest)
+node_modules/
+.next/
+
+# Env files (templates are committed)
+.env
+.env.*
+!.env.example
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
