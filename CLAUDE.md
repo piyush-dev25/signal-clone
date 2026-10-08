@@ -214,6 +214,7 @@ Idempotent (skip if users exist); relative timestamps (e.g. "2 hours ago") so th
 - Several DMs and 1-2 groups with 10-20 realistic messages each, mixing read / delivered / unread states, one quoted reply, one system message, one group where the primary test user is admin.
 - One long conversation (~100+ messages) to exercise pagination.
 - Pre-seeded contacts for the test users. Some users online (seed `last_seen` values).
+- A few reactions (phase 10), declared per thread as `(message index, user, emoji)` and inserted directly after the messages: Priya 👍 on Rahul's "Traffic is crazy…", Rahul ❤️ on Priya's "I booked seats in row F", Rahul 👍 + Ananya 👍 + Vikram ❤️ on Priya's "5 AM sounds right…" (Weekend Trek), Meera 😂 on Arjun's "I'm only on chapter 4…" (Book Club). Only allowed emoji, text messages, members, one per person, and only on messages the reactor has already received; invalid data raises at seed time. They change no message, cursor, unread count or ordering.
 
 ## Testing
 
@@ -228,7 +229,7 @@ Real-time is also verified manually: two browser windows as different users (sen
 
 ## Build phases (vertical slices; each ends deployed and demoable)
 
-Status: phases 0-8 **done** (phase 7 tagged `submission-ready`); phase 9 (touch actions + login polish) **done**, pending your review.
+Status: phases 0-9 **done** (phase 7 tagged `submission-ready`); phase 10 (seeded reactions + new-user guidance) **done**, pending your review.
 
 0. **[done]** Skeleton: monorepo, FastAPI `/health` + CORS + WebSocket echo, Next.js shell, deploy both (Render + Vercel), verify `wss://` works live.
 1. **[done]** Auth and onboarding: OTP flow, JWT, display name and avatar, session persistence, logout.
@@ -240,6 +241,7 @@ Status: phases 0-8 **done** (phase 7 tagged `submission-ready`); phase 9 (touch 
 7. **[done]** README and final live checklist.
 8. **[done]** Reactions (bonus): PUT/DELETE `/messages/{id}/reaction`, `reaction_update` snapshot event, picker + chips in the UI.
 9. **[done]** Mobile message actions (tap-to-reveal row on touch screens) and login page polish (brand header, demo accounts, fill code). Frontend only.
+10. **[done]** Seeded reactions; empty chat list explains how to start ("Add a contact by their phone number, then start a chat with them."); README steps for new numbers.
 
 Cut line if time runs short: drop from the end (stretch, then bonuses, then group polish). Never leave the core (phases 0-4) half-working.
 

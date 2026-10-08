@@ -24,6 +24,8 @@ OTP and encryption are **mocked**: there is no SMS, and every number accepts the
 
 Any other valid number signs up a new account (name and avatar on first login). The login screen has a **Try a demo account** section with the first three accounts: tap one to fill in the number (it doesn't submit), and use **Fill code** on the next step.
 
+The seeded chats already show a few emoji reactions (e.g. on "5 AM sounds right…" in **Weekend Trek** and on "Traffic is crazy…" in Priya ↔ Rahul), so the feature is visible on first look.
+
 ## Try it in 2 minutes
 
 1. Open the app in two windows (a normal one and a private one).
@@ -34,6 +36,8 @@ Any other valid number signs up a new account (name and avatar on first login). 
 6. Hover a message → **React** (smiley) and pick an emoji: the chip appears under the bubble in both windows. Click the chip again to remove it.
 7. Click **New group** (next to New chat), pick contacts, name it. Click the group's header to open **Group info**: rename it, add or remove members, make someone admin. Every window updates live, with system messages ("You added Meera").
 8. Profile menu → **Settings** → Appearance: switch System / Light / Dark.
+
+**Signed up with a new number instead?** Your list starts empty. Click **Start a new chat** (or the **New chat** button) → **Add contact** → enter `98765 43210` with `+91` → **Add**. Then open **New chat** again and pick **Priya Sharma** to start chatting with her.
 
 ## Features
 

@@ -33,7 +33,7 @@ export function ConversationList({ meId, onNewChat }: Props) {
       <div className="flex flex-col items-center gap-3 px-pane-x py-12 text-center">
         <ChatIcon className="size-10 text-fg-tertiary" />
         <p className="text-body font-medium text-fg">No conversations yet</p>
-        <p className="text-body-sm text-fg-secondary">Start a chat with one of your contacts.</p>
+        <p className="text-body-sm text-fg-secondary">Add a contact by their phone number, then start a chat with them.</p>
         <Button onClick={onNewChat}>Start a new chat</Button>
       </div>
     );

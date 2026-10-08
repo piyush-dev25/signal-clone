@@ -12,9 +12,10 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.db import utcnow
-from app.models import Conversation, ConversationMember, Message, User
+from app.models import Conversation, ConversationMember, Message, MessageReaction, User
 from app.services.contacts import add_contact
 from app.services.conversations import get_or_create_direct
+from app.services.reactions import ALLOWED_REACTIONS
 from app.services.users import get_or_create_by_phone, update_profile
 
 # key, phone, display name, avatar, last seen (minutes ago)
@@ -49,6 +50,9 @@ class Thread:
     undelivered: dict[str, int] = field(default_factory=dict)
     # (message index, quoted message index)
     reply: tuple[int, int] | None = None
+    # (message index, reactor key, emoji); same index convention as `reply`. Only on messages the
+    # reactor has already received, so the seeded cursors stay consistent.
+    reactions: list[tuple[int, str, str]] = field(default_factory=list)
 
 
 def _session(start_min: float, lines: list[tuple[str, str]], gap: float = 1.5) -> list[tuple[str, str, float]]:
@@ -199,6 +203,10 @@ THREADS = [
         members=["priya", "rahul"],
         messages=LONG_CHAT,
         unread={"priya": 3},  # Rahul's last three
+        reactions=[
+            (105, "priya", "👍"),  # "Traffic is crazy on the ring road, take the metro"
+            (96, "rahul", "❤️"),  # "I booked seats in row F"
+        ],
     ),
     Thread(
         group_name="Weekend Trek",
@@ -228,6 +236,11 @@ THREADS = [
             ("rahul", "Also carry a headlamp, the last stretch is dark"),
         ], gap=7),
         unread={"priya": 4, "ananya": 2, "vikram": 5},
+        reactions=[  # "5 AM sounds right. I'll book the homestay for Saturday night"
+            (8, "rahul", "👍"),
+            (8, "ananya", "👍"),
+            (8, "vikram", "❤️"),
+        ],
         undelivered={"vikram": 5},
     ),
     Thread(
@@ -291,6 +304,7 @@ THREADS = [
             ("priya", "Bringing my annotated copy 📚"),
         ], gap=4),
         unread={"arjun": 3},
+        reactions=[(6, "meera", "😂")],  # "I'm only on chapter 4, no spoilers 🙈"
     ),
     Thread(
         members=["rahul", "arjun"],
@@ -425,4 +439,35 @@ def run_seed(db: Session) -> bool:
             member.last_read_message_id = read
             member.last_delivered_message_id = max(delivered, read)
     db.commit()
+
+    _seed_reactions(db, users, by_thread, now)
     return True
+
+
+def _seed_reactions(
+    db: Session, users: dict[str, User], by_thread: dict[int, dict[int, Message]], now: datetime
+) -> None:
+    """A few reactions so the feature is visible on first look. Inserted directly (no pushes at
+    seed time); they don't affect unread counts, cursors or ordering. Invalid data fails loudly."""
+    for t_index, thread in enumerate(THREADS):
+        seen: set[tuple[int, str]] = set()
+        per_message: dict[int, int] = {}
+        for m_index, user_key, emoji in thread.reactions:
+            message = by_thread[t_index][m_index]
+            if emoji not in ALLOWED_REACTIONS:
+                raise ValueError(f"seed reaction {emoji!r} is not in ALLOWED_REACTIONS")
+            if message.type != "text":
+                raise ValueError(f"seed reaction on non-text message {m_index} in thread {t_index}")
+            if user_key not in thread.members:
+                raise ValueError(f"seed reactor {user_key!r} is not a member of thread {t_index}")
+            if (m_index, user_key) in seen:
+                raise ValueError(f"duplicate seed reaction by {user_key!r} on message {m_index}")
+            seen.add((m_index, user_key))
+            # A minute or two after the message, staggered per reactor, never in the future.
+            nth = per_message.get(m_index, 0)
+            per_message[m_index] = nth + 1
+            reacted_at = min(now, message.created_at + timedelta(minutes=1 + 0.5 * nth))
+            db.add(
+                MessageReaction(message_id=message.id, user_id=users[user_key].id, emoji=emoji, created_at=reacted_at)
+            )
+    db.commit()
