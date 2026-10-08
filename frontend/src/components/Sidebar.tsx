@@ -11,14 +11,15 @@ import { SearchResults } from "@/components/SearchResults";
 import { useSession } from "@/components/session";
 import { IconButton } from "@/components/ui";
 
-export function Sidebar() {
+/** `className` controls visibility/width (the (app) layout makes it full-screen on mobile). */
+export function Sidebar({ className = "" }: { className?: string }) {
   const { me, logout } = useSession();
   const [query, setQuery] = useState("");
   const [newChatOpen, setNewChatOpen] = useState(false);
   const [addContactOpen, setAddContactOpen] = useState(false);
 
   return (
-    <aside className="flex w-sidebar shrink-0 flex-col border-r border-border bg-sidebar">
+    <aside className={`shrink-0 flex-col border-border bg-sidebar md:border-r ${className}`}>
       <header className="flex h-header shrink-0 items-center gap-3 px-pane-x">
         <ProfileMenu me={me} onLogout={logout} />
         <h1 className="flex-1 text-header font-semibold text-fg">Chats</h1>

@@ -1,10 +1,26 @@
 from collections.abc import Sequence
+from dataclasses import dataclass
 
 from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from app.models import Message
+from app.models import Conversation, ConversationMember, Message, User
 from app.schemas.message import MessageOut, ReplyToOut
+from app.services.errors import BadRequest, NotFound, ServiceError
+from app.services.receipts import member_ids
+
+
+class NotAMember(ServiceError):
+    status_code = 403
+    detail = "You're not a member of this conversation"
+
+
+@dataclass
+class SendResult:
+    message: MessageOut
+    created: bool  # False when (sender, client_id) already existed: an idempotent retry
+    member_ids: set[int]
 
 
 def to_message_out(db: Session, messages: Sequence[Message]) -> list[MessageOut]:
@@ -34,3 +50,68 @@ def to_message_out(db: Session, messages: Sequence[Message]) -> list[MessageOut]
             )
         )
     return out
+
+
+def require_member(db: Session, user: User, conversation_id: int) -> ConversationMember:
+    """404 if the conversation doesn't exist, 403 if the user isn't in it."""
+    if db.get(Conversation, conversation_id) is None:
+        raise NotFound("Conversation not found")
+    member = db.get(ConversationMember, (conversation_id, user.id))
+    if member is None:
+        raise NotAMember()
+    return member
+
+
+def _existing(db: Session, sender_id: int, client_id: str) -> Message | None:
+    return db.scalar(select(Message).where(Message.sender_id == sender_id, Message.client_id == client_id))
+
+
+def send_message(
+    db: Session, user: User, conversation_id: int, client_id: str, body: str, reply_to_id: int | None = None
+) -> SendResult:
+    """Save a text message. Retrying with the same client_id returns the original message."""
+    require_member(db, user, conversation_id)
+    members = member_ids(db, conversation_id)
+
+    existing = _existing(db, user.id, client_id)
+    if existing is not None:
+        if existing.conversation_id != conversation_id:
+            raise BadRequest("client_id was already used in another conversation")
+        return SendResult(to_message_out(db, [existing])[0], created=False, member_ids=members)
+
+    if reply_to_id is not None:
+        quoted = db.get(Message, reply_to_id)
+        if quoted is None or quoted.conversation_id != conversation_id or quoted.type != "text":
+            raise BadRequest("You can only reply to a message in this conversation")
+
+    message = Message(
+        conversation_id=conversation_id,
+        sender_id=user.id,
+        type="text",
+        body=body.strip(),
+        reply_to_id=reply_to_id,
+        client_id=client_id,
+    )
+    db.add(message)
+    try:
+        db.commit()
+    except IntegrityError:
+        # A concurrent retry with the same client_id won the insert.
+        db.rollback()
+        existing = _existing(db, user.id, client_id)
+        if existing is None:
+            raise
+        return SendResult(to_message_out(db, [existing])[0], created=False, member_ids=members)
+    return SendResult(to_message_out(db, [message])[0], created=True, member_ids=members)
+
+
+def list_messages(
+    db: Session, user: User, conversation_id: int, before_id: int | None = None, limit: int = 30
+) -> list[MessageOut]:
+    """Newest first. Pass the oldest id you have as before_id to page backwards; ids are stable cursors."""
+    require_member(db, user, conversation_id)
+    query = select(Message).where(Message.conversation_id == conversation_id)
+    if before_id is not None:
+        query = query.where(Message.id < before_id)
+    messages = db.scalars(query.order_by(Message.id.desc()).limit(limit)).all()
+    return to_message_out(db, messages)

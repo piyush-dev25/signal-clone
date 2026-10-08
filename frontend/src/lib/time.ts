@@ -40,3 +40,28 @@ export function lastSeenText(iso: string | null, now: Date = new Date()): string
   if (days === 1) return `last seen yesterday at ${clock(date)}`;
   return `last seen ${date.toLocaleDateString(undefined, { month: "short", day: "numeric" })}`;
 }
+
+/** Time shown inside a message bubble. */
+export function messageTime(iso: string): string {
+  return clock(new Date(iso));
+}
+
+/** Local calendar day, for grouping messages under day separators. */
+export function dayKey(iso: string): string {
+  const date = new Date(iso);
+  return `${date.getFullYear()}-${date.getMonth()}-${date.getDate()}`;
+}
+
+/** Day separator: "Today", "Yesterday", "Mon, Mar 4", or "Mon, Mar 4, 2025" in another year. */
+export function dayLabel(iso: string, now: Date = new Date()): string {
+  const date = new Date(iso);
+  const days = Math.round((startOfDay(now) - startOfDay(date)) / DAY);
+  if (days === 0) return "Today";
+  if (days === 1) return "Yesterday";
+  return date.toLocaleDateString(undefined, {
+    weekday: "short",
+    month: "short",
+    day: "numeric",
+    year: date.getFullYear() === now.getFullYear() ? undefined : "numeric",
+  });
+}

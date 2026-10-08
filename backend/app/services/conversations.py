@@ -102,7 +102,15 @@ def list_conversations(db: Session, viewer: User) -> list[ConversationOut]:
         .join(ConversationMember, ConversationMember.conversation_id == Conversation.id)
         .where(ConversationMember.user_id == viewer.id)
     ).all()
-    return sorted(_build(db, viewer, conversations), key=_activity_key, reverse=True)
+    built = _build(db, viewer, conversations)
+    by_id = {c.id: c for c in conversations}
+    visible = [
+        c
+        for c in built
+        # An empty direct chat only shows up for whoever opened it, until the first message.
+        if not (c.type == "direct" and c.last_message is None and by_id[c.id].created_by != viewer.id)
+    ]
+    return sorted(visible, key=_activity_key, reverse=True)
 
 
 def get_conversation_out(db: Session, viewer: User, conversation_id: int) -> ConversationOut:

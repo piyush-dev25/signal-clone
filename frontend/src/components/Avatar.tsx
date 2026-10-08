@@ -4,7 +4,7 @@ import { colorForUser, initials, presetFor } from "@/lib/avatars";
 import { conversationTitle, otherMember } from "@/lib/conversations";
 
 /** Sizes map to the --spacing-avatar-* tokens in globals.css. */
-export type AvatarSize = "list" | "contact" | "header" | "profile" | "picker" | "hero";
+export type AvatarSize = "list" | "contact" | "header" | "profile" | "picker" | "hero" | "message";
 
 type Props = {
   /** Picks the default color: user id for people, conversation id for groups. */

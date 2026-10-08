@@ -2,14 +2,14 @@
 
 // Auth gate, the app's single WebSocket, the store load and the sidebar. Living in the (app)
 // layout means all of them survive switching between chats.
-import { useRouter } from "next/navigation";
-import { useEffect, useRef, useState } from "react";
+import { usePathname, useRouter } from "next/navigation";
+import { type ReactNode, Suspense, useEffect, useRef, useState } from "react";
 import { SessionContext } from "@/components/session";
 import { Sidebar } from "@/components/Sidebar";
 import { Button } from "@/components/ui";
 import { ApiError, type User, getMe } from "@/lib/api";
 import { clearToken, getToken, redirectToLogin } from "@/lib/auth";
-import { openSocket } from "@/lib/ws";
+import { type RealtimeConnection, connectRealtime } from "@/lib/ws";
 import { useAppStore } from "@/store/app";
 
 type GateState = { status: "loading" } | { status: "error"; message: string } | { status: "ready"; me: User };
@@ -18,7 +18,7 @@ export default function AppLayout({ children }: LayoutProps<"/">) {
   const router = useRouter();
   const [state, setState] = useState<GateState>({ status: "loading" });
   const [attempt, setAttempt] = useState(0);
-  const socketRef = useRef<WebSocket | null>(null);
+  const socketRef = useRef<RealtimeConnection | null>(null);
 
   useEffect(() => {
     const token = getToken();
@@ -34,9 +34,12 @@ export default function AppLayout({ children }: LayoutProps<"/">) {
           router.replace("/login"); // resumes onboarding
           return;
         }
-        socketRef.current = openSocket(token);
+        const store = useAppStore.getState();
+        store.load();
+        // Every (re)connect also resyncs: it covers anything sent while we were disconnected,
+        // including the gap between the REST load above and the first connect.
+        socketRef.current = connectRealtime(token, { onOpen: store.resync, onEvent: store.handleEvent });
         setState({ status: "ready", me });
-        useAppStore.getState().load();
       })
       .catch((err: unknown) => {
         // 401 is handled in api.ts (token cleared, redirected to /login).
@@ -45,14 +48,14 @@ export default function AppLayout({ children }: LayoutProps<"/">) {
       });
     return () => {
       cancelled = true;
-      socketRef.current?.close(1000);
+      socketRef.current?.close();
       socketRef.current = null;
     };
   }, [router, attempt]);
 
   function logout() {
     clearToken();
-    socketRef.current?.close(1000);
+    socketRef.current?.close();
     socketRef.current = null;
     // Full page load (like the 401 path) so no client state, e.g. the login step, survives.
     redirectToLogin();
@@ -82,10 +85,21 @@ export default function AppLayout({ children }: LayoutProps<"/">) {
   const { me } = state;
   return (
     <SessionContext.Provider value={{ me, logout }}>
-      <div className="flex h-dvh w-full overflow-hidden bg-surface text-fg">
-        <Sidebar />
-        <main className="flex min-w-0 flex-1 flex-col">{children}</main>
-      </div>
+      {/* Reading the URL needs a Suspense boundary under Cache Components. */}
+      <Suspense fallback={null}>
+        <Panes>{children}</Panes>
+      </Suspense>
     </SessionContext.Provider>
+  );
+}
+
+/** Two panes from md up; below md one at a time: the list on "/", the chat on "/chat/[id]". */
+function Panes({ children }: { children: ReactNode }) {
+  const inChat = usePathname().startsWith("/chat/");
+  return (
+    <div className="flex h-dvh w-full overflow-hidden bg-surface text-fg">
+      <Sidebar className={`${inChat ? "hidden md:flex" : "flex"} w-full md:w-sidebar`} />
+      <main className={`${inChat ? "flex" : "hidden md:flex"} min-w-0 flex-1 flex-col`}>{children}</main>
+    </div>
   );
 }

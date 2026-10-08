@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
 
@@ -7,6 +7,14 @@ const inter = Inter({ subsets: ["latin"], variable: "--font-inter" });
 export const metadata: Metadata = {
   title: "Signal",
   description: "Signal messenger clone",
+};
+
+// "resizes-content": the on-screen keyboard shrinks the layout viewport, so h-dvh panes keep the
+// composer visible above it.
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  interactiveWidget: "resizes-content",
 };
 
 // Runs before first paint so there is no light flash in dark mode. Follows the OS setting

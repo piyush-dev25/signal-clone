@@ -64,7 +64,7 @@ def test_direct_with_unknown_user_is_404(client, priya):
     assert res.status_code == 404
 
 
-def test_conversation_object_shape(client, priya, rahul):
+def test_conversation_object_shape(client, priya, rahul, add_message):
     client.post("/contacts", json={"phone": rahul["phone"], "nickname": "Rahul bhai"}, headers=priya["headers"])
     conv = open_direct(client, priya, rahul)
     assert conv["unread_count"] == 0
@@ -87,7 +87,8 @@ def test_conversation_object_shape(client, priya, rahul):
         "last_delivered": 0,
         "last_read": 0,
     }
-    # Rahul sees no nickname: nicknames belong to the viewer.
+    # Rahul sees no nickname: nicknames belong to the viewer. (He sees the chat once it has a message.)
+    add_message(conv["id"], priya["id"])
     rahul_view = conversations(client, rahul)[0]
     assert all(m["nickname"] is None for m in rahul_view["members"])
 
@@ -175,3 +176,19 @@ def test_empty_conversations_sort_by_created_at(client, db, priya, rahul, ananya
 def test_only_my_conversations_are_listed(client, priya, rahul, ananya):
     open_direct(client, rahul, ananya)
     assert conversations(client, priya) == []
+
+
+def test_empty_direct_chat_is_only_listed_for_its_creator(client, priya, rahul, add_message):
+    conv_id = open_direct(client, priya, rahul)["id"]
+    assert [c["id"] for c in conversations(client, priya)] == [conv_id]
+    assert conversations(client, rahul) == []
+    # Opening it from the other side doesn't make Rahul its creator, but the first message reveals it.
+    open_direct(client, rahul, priya)
+    assert conversations(client, rahul) == []
+    add_message(conv_id, priya["id"])
+    assert [c["id"] for c in conversations(client, rahul)] == [conv_id]
+
+
+def test_empty_groups_are_listed_for_everyone(client, priya, rahul, make_group):
+    group = make_group("Trek", [priya["id"], rahul["id"]])
+    assert [c["id"] for c in conversations(client, rahul)] == [group]

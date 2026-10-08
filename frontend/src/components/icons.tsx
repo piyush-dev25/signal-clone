@@ -76,3 +76,61 @@ export const GroupGlyph = (props: IconProps) => (
     <path d="M15.2 13.2c.4-.1.9-.2 1.3-.2 2.9 0 5 2 5 5h-4.8c-.1-1.9-.6-3.5-1.5-4.8z" />
   </svg>
 );
+
+export const ArrowLeftIcon = (props: IconProps) => (
+  <Stroke {...props}>
+    <path d="M19 12H5M11 6l-6 6 6 6" />
+  </Stroke>
+);
+
+export const SendIcon = (props: IconProps) => (
+  <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden {...props}>
+    <path d="M3.4 20.4 21 12 3.4 3.6l-.1 6.5L15 12l-11.7 1.9z" />
+  </svg>
+);
+
+/* Message status, Signal-style: dashed circle (sending), one check-circle (sent), two (delivered),
+   two filled (read). Read draws its checks in the outgoing-bubble color so they show on the fill. */
+export const SendingIcon = (props: IconProps) => (
+  <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth={1.3} aria-hidden {...props}>
+    <circle cx="8" cy="8" r="6" strokeDasharray="2.2 1.6" />
+  </svg>
+);
+
+export const SentIcon = (props: IconProps) => (
+  <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth={1.3} aria-hidden {...props}>
+    <circle cx="8" cy="8" r="6" />
+    <path d="m5.4 8.2 1.8 1.8 3.5-3.6" strokeLinecap="round" strokeLinejoin="round" />
+  </svg>
+);
+
+export const DeliveredIcon = (props: IconProps) => (
+  <svg viewBox="0 0 22 16" fill="none" stroke="currentColor" strokeWidth={1.3} aria-hidden {...props}>
+    <path d="M14 2a6 6 0 1 1 0 12" />
+    <circle cx="8" cy="8" r="6" />
+    <path d="m5.4 8.2 1.8 1.8 3.5-3.6" strokeLinecap="round" strokeLinejoin="round" />
+  </svg>
+);
+
+export const ReadIcon = (props: IconProps) => (
+  <svg viewBox="0 0 22 16" aria-hidden {...props}>
+    <circle cx="14" cy="8" r="6.5" fill="currentColor" />
+    <circle cx="8" cy="8" r="6.5" fill="currentColor" stroke="var(--color-bubble-out)" strokeWidth={1.2} />
+    <path
+      d="m5.4 8.2 1.8 1.8 3.5-3.6"
+      fill="none"
+      stroke="var(--color-bubble-out)"
+      strokeWidth={1.5}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    />
+  </svg>
+);
+
+export const AlertIcon = (props: IconProps) => (
+  <svg viewBox="0 0 16 16" aria-hidden {...props}>
+    <circle cx="8" cy="8" r="7" fill="currentColor" />
+    <path d="M8 4.5v4.2" stroke="var(--color-on-accent)" strokeWidth={1.6} strokeLinecap="round" />
+    <circle cx="8" cy="11.3" r="0.95" fill="var(--color-on-accent)" />
+  </svg>
+);

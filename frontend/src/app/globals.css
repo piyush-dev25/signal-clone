@@ -40,6 +40,13 @@
   --sg-on-bubble-out: #ffffff;
   --sg-bubble-in: #e9e9e9;
   --sg-on-bubble-in: #1b1b1b;
+  --sg-meta-out: rgb(255 255 255 / 0.8); /* time + ticks inside my bubbles */
+  --sg-meta-in: #5e5e5e;
+  --sg-receipt-read: #ffffff; /* read ticks are filled; accent would vanish on the accent bubble */
+  --sg-quote-out: rgb(255 255 255 / 0.2);
+  --sg-quote-in: rgb(0 0 0 / 0.06);
+  --sg-quote-bar-out: #ffffff;
+  --sg-quote-bar-in: #2c6bed;
 
   --sg-shadow-menu: 0 2px 12px rgb(0 0 0 / 0.16), 0 0 0 1px rgb(0 0 0 / 0.04);
   --sg-shadow-dialog: 0 8px 32px rgb(0 0 0 / 0.2);
@@ -75,6 +82,13 @@
   --sg-on-bubble-out: #ffffff;
   --sg-bubble-in: #3b3b3b;
   --sg-on-bubble-in: #e9e9e9;
+  --sg-meta-out: rgb(255 255 255 / 0.8);
+  --sg-meta-in: #b9b9b9;
+  --sg-receipt-read: #ffffff;
+  --sg-quote-out: rgb(255 255 255 / 0.2);
+  --sg-quote-in: rgb(255 255 255 / 0.08);
+  --sg-quote-bar-out: #ffffff;
+  --sg-quote-bar-in: #a8c1f7;
 
   --sg-shadow-menu: 0 2px 12px rgb(0 0 0 / 0.5), 0 0 0 1px rgb(255 255 255 / 0.06);
   --sg-shadow-dialog: 0 8px 32px rgb(0 0 0 / 0.6);
@@ -106,6 +120,13 @@
   --color-on-bubble-out: var(--sg-on-bubble-out);
   --color-bubble-in: var(--sg-bubble-in);
   --color-on-bubble-in: var(--sg-on-bubble-in);
+  --color-meta-out: var(--sg-meta-out);
+  --color-meta-in: var(--sg-meta-in);
+  --color-receipt-read: var(--sg-receipt-read);
+  --color-quote-out: var(--sg-quote-out);
+  --color-quote-in: var(--sg-quote-in);
+  --color-quote-bar-out: var(--sg-quote-bar-out);
+  --color-quote-bar-in: var(--sg-quote-bar-in);
 
   --shadow-menu: var(--sg-shadow-menu);
   --shadow-dialog: var(--sg-shadow-dialog);
@@ -137,6 +158,8 @@
   --radius-menu: 8px;
   --radius-dialog: 12px;
   --radius-bubble: 18px;
+  --radius-bubble-joined: 4px; /* corners where consecutive bubbles from one sender meet */
+  --radius-quote: 8px;
 
   /* Structural sizes (spacing namespace → w-sidebar, h-header, h-list-item, …) */
   --spacing-sidebar: 320px;
@@ -153,6 +176,10 @@
   --spacing-list-inset: 8px; /* gap between sidebar edge and a list row */
   --spacing-row-x: 12px; /* horizontal padding inside a list row */
   --spacing-pane-x: 16px; /* horizontal padding of headers and panes */
+  --spacing-bubble-max: 75%; /* of the message column */
+  --spacing-bubble-cap: 560px; /* absolute cap on wide screens */
+  --spacing-composer-max: 160px; /* the composer grows up to this, then scrolls */
+  --spacing-receipt: 16px;
 
   /* Avatar sizes */
   --spacing-avatar-list: 48px;
@@ -161,6 +188,7 @@
   --spacing-avatar-profile: 28px;
   --spacing-avatar-picker: 44px;
   --spacing-avatar-hero: 88px;
+  --spacing-avatar-message: 28px; /* beside incoming bubbles in groups */
 }
 
 body {

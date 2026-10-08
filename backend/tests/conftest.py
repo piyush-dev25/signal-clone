@@ -11,6 +11,7 @@ from fastapi.testclient import TestClient  # noqa: E402
 from app.db import Base, SessionLocal, engine  # noqa: E402
 from app.main import app  # noqa: E402
 from app.models import Conversation, ConversationMember, Message  # noqa: E402
+from app.realtime.manager import manager  # noqa: E402
 from app.services.auth import FIXED_OTP  # noqa: E402
 
 
@@ -101,3 +102,14 @@ def make_group(db):
         return group.id
 
     return _make
+
+
+@pytest.fixture
+def live_client(monkeypatch):
+    """A TestClient whose REST calls and websockets share one event loop, so pushes scheduled by
+    REST handlers reach the test's sockets. The seed is disabled to keep the database empty."""
+    monkeypatch.setattr("app.main.run_seed", lambda db: False)
+    manager.clear()
+    with TestClient(app) as client:
+        yield client
+    manager.clear()

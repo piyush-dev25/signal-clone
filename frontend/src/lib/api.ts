@@ -76,6 +76,19 @@ export type Conversation = {
 
 export type SearchResult = { contacts: Contact[]; conversations: Conversation[] };
 
+export type ReceiptUpdate = {
+  conversation_id: number;
+  user_id: number;
+  delivered_up_to?: number;
+  read_up_to?: number;
+};
+
+/** Server → client WebSocket envelopes (unknown types are ignored). */
+export type ServerEvent =
+  | { type: "message_new"; data: Message }
+  | { type: "receipt_update"; data: ReceiptUpdate }
+  | { type: "pong"; data: Record<string, never> };
+
 export class ApiError extends Error {
   readonly status: number;
 
@@ -144,3 +157,17 @@ export const openDirect = (userId: number) =>
   api<Conversation>("/conversations/direct", { method: "POST", body: { user_id: userId } });
 
 export const search = (q: string) => api<SearchResult>(`/search?q=${encodeURIComponent(q)}`);
+
+export const MESSAGE_PAGE_SIZE = 30;
+
+/** Newest first. Pass the oldest id you have as `beforeId` to page backwards. */
+export const listMessages = (conversationId: number, beforeId?: number, limit = MESSAGE_PAGE_SIZE) => {
+  const params = new URLSearchParams({ limit: String(limit) });
+  if (beforeId !== undefined) params.set("before_id", String(beforeId));
+  return api<Message[]>(`/conversations/${conversationId}/messages?${params}`);
+};
+
+export const postMessage = (
+  conversationId: number,
+  message: { client_id: string; body: string; reply_to_id?: number | null },
+) => api<Message>(`/conversations/${conversationId}/messages`, { method: "POST", body: message });
