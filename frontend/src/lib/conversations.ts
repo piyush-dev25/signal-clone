@@ -27,14 +27,17 @@ export function conversationTitle(conversation: Conversation, meId: number): str
 export function systemMessageText(message: Message, conversation: Conversation, meId: number): string {
   const meta = message.meta;
   if (!meta) return "";
-  const who = (userId: number | undefined, subject: boolean) => {
+  // Current members get the viewer's name for them; people who have left fall back to the
+  // name recorded when the change happened.
+  const who = (userId: number | undefined, snapshot: string | undefined, subject: boolean) => {
     if (userId === meId) return subject ? "You" : "you";
     const member = conversation.members.find((m) => m.user_id === userId);
     if (member) return memberName(member);
+    if (snapshot) return snapshot;
     return subject ? "Someone" : "someone";
   };
-  const actor = who(meta.actor_id, true);
-  const target = who(meta.target_id, false);
+  const actor = who(meta.actor_id, meta.actor_name, true);
+  const target = who(meta.target_id, meta.target_name, false);
   switch (meta.action) {
     case "group_created":
       return `${actor} created the group.`;
@@ -47,6 +50,10 @@ export function systemMessageText(message: Message, conversation: Conversation, 
     case "renamed":
       return `${actor} changed the group name to “${meta.name ?? ""}”.`;
     case "role_changed":
+      if (meta.actor_id === meta.target_id && meta.role === "admin") {
+        // Automatic promotion after the last admin left.
+        return meta.target_id === meId ? "You are now an admin." : `${who(meta.target_id, meta.target_name, true)} is now an admin.`;
+      }
       return meta.role === "admin"
         ? `${actor} made ${target} an admin.`
         : `${actor} revoked admin privileges from ${target}.`;

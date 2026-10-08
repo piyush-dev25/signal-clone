@@ -1,4 +1,4 @@
-from tests.live import connect, open_dm, ping, users  # noqa: F401  (users is a fixture)
+from tests.live import connect, open_dm, ping, settle, users  # noqa: F401  (users is a fixture)
 
 
 def typing(ws, conversation_id, is_typing=True):
@@ -13,8 +13,7 @@ def test_typing_is_relayed_to_other_members_only(live_client, users):
     priya, rahul = users["priya"], users["rahul"]
     conv = open_dm(live_client, priya, rahul)
     with connect(live_client, priya) as p_tab1, connect(live_client, priya) as p_tab2, connect(live_client, rahul) as r:
-        for ws in (p_tab1, p_tab2, r):
-            ping(ws)
+        settle(p_tab1, p_tab2, r)
         typing(p_tab1, conv, True)
         ping(p_tab1)  # the typing event has been handled once the pong arrives
         assert typing_events(r) == [{"conversation_id": conv, "user_id": priya["id"], "is_typing": True}]

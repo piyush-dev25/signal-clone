@@ -36,6 +36,9 @@ export type SystemMeta = {
   target_id?: number;
   name?: string;
   role?: "admin" | "member";
+  /** Display names at the time of the change, for people who are no longer members. */
+  actor_name?: string;
+  target_name?: string;
 };
 
 export type Message = {
@@ -93,6 +96,8 @@ export type ServerEvent =
   | { type: "receipt_update"; data: ReceiptUpdate }
   | { type: "typing"; data: TypingEvent }
   | { type: "presence"; data: PresenceEvent }
+  | { type: "conversation_updated"; data: Conversation }
+  | { type: "conversation_removed"; data: { conversation_id: number } }
   | { type: "pong"; data: Record<string, never> };
 
 export type ReadCursors = { conversation_id: number; last_read: number; last_delivered: number };
@@ -183,3 +188,23 @@ export const postMessage = (
 /** Move my read cursor (the server clamps to the latest message and never moves it back). */
 export const markRead = (conversationId: number, messageId: number) =>
   api<ReadCursors>(`/conversations/${conversationId}/read`, { method: "POST", body: { message_id: messageId } });
+
+// --- groups (admin-only calls are rejected with 403 for non-admins) ---------------------
+
+export const createGroup = (name: string, memberIds: number[]) =>
+  api<Conversation>("/conversations/group", { method: "POST", body: { name, member_ids: memberIds } });
+
+export const renameGroup = (conversationId: number, name: string) =>
+  api<Conversation>(`/conversations/${conversationId}`, { method: "PATCH", body: { name } });
+
+export const addGroupMembers = (conversationId: number, userIds: number[]) =>
+  api<Conversation>(`/conversations/${conversationId}/members`, { method: "POST", body: { user_ids: userIds } });
+
+export const removeGroupMember = (conversationId: number, userId: number) =>
+  api<Conversation>(`/conversations/${conversationId}/members/${userId}`, { method: "DELETE" });
+
+export const setGroupRole = (conversationId: number, userId: number, role: "admin" | "member") =>
+  api<Conversation>(`/conversations/${conversationId}/members/${userId}`, { method: "PATCH", body: { role } });
+
+export const leaveGroup = (conversationId: number) =>
+  api<null>(`/conversations/${conversationId}/leave`, { method: "POST" });

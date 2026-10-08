@@ -1,10 +1,12 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect } from "react";
+import { useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
 import { ConversationAvatar } from "@/components/Avatar";
 import { Composer } from "@/components/chat/Composer";
 import { MessageList } from "@/components/chat/MessageList";
+import { GroupInfoDialog } from "@/components/GroupInfoDialog";
 import { ArrowLeftIcon } from "@/components/icons";
 import { useSession } from "@/components/session";
 import type { Conversation } from "@/lib/api";
@@ -27,6 +29,9 @@ function subtitle(conversation: Conversation, meId: number, typingIds: number[])
 
 export function ChatView({ id }: { id: string }) {
   const { me } = useSession();
+  const router = useRouter();
+  const [infoOpen, setInfoOpen] = useState(false);
+  const removedConversationId = useAppStore((s) => s.removedConversationId);
   const conversationId = /^\d+$/.test(id) ? Number(id) : null;
   const status = useAppStore((s) => s.status);
   const conversation = useAppStore((s) => s.conversations.find((c) => c.id === conversationId));
@@ -48,6 +53,11 @@ export function ChatView({ id }: { id: string }) {
     setActiveConversation(conversationId);
     return () => setActiveConversation(null);
   }, [conversationId, setActiveConversation]);
+
+  // Removed from this group, left it, or it was deleted: go back to the chat list.
+  useEffect(() => {
+    if (conversationId !== null && removedConversationId === conversationId) router.replace("/");
+  }, [conversationId, removedConversationId, router]);
 
   // Read while open and visible: on open, on each new message, and when the tab becomes visible.
   useEffect(() => {
@@ -78,12 +88,33 @@ export function ChatView({ id }: { id: string }) {
         >
           <ArrowLeftIcon className="size-icon" />
         </Link>
-        <ConversationAvatar conversation={conversation} meId={me.id} size="header" />
-        <div className="min-w-0">
-          <h2 className="truncate text-header font-semibold text-fg">{conversationTitle(conversation, me.id)}</h2>
-          {sub && <p className="truncate text-caption text-fg-secondary">{sub}</p>}
-        </div>
+        {conversation.type === "group" ? (
+          // The whole avatar + title area opens Group info.
+          <button
+            type="button"
+            onClick={() => setInfoOpen(true)}
+            aria-label="Group info"
+            className="-mx-2 flex min-w-0 flex-1 items-center gap-3 rounded-control px-2 py-1 text-left hover:bg-hover"
+          >
+            <ConversationAvatar conversation={conversation} meId={me.id} size="header" />
+            <div className="min-w-0">
+              <h2 className="truncate text-header font-semibold text-fg">{conversationTitle(conversation, me.id)}</h2>
+              {sub && <p className="truncate text-caption text-fg-secondary">{sub}</p>}
+            </div>
+          </button>
+        ) : (
+          <>
+            <ConversationAvatar conversation={conversation} meId={me.id} size="header" />
+            <div className="min-w-0">
+              <h2 className="truncate text-header font-semibold text-fg">{conversationTitle(conversation, me.id)}</h2>
+              {sub && <p className="truncate text-caption text-fg-secondary">{sub}</p>}
+            </div>
+          </>
+        )}
       </header>
+      {conversation.type === "group" && (
+        <GroupInfoDialog conversation={conversation} open={infoOpen} onOpenChange={setInfoOpen} />
+      )}
       <MessageList key={conversation.id} conversation={conversation} meId={me.id} />
       <Composer
         key={`composer-${conversation.id}`}

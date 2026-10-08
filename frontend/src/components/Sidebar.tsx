@@ -3,8 +3,9 @@
 import { useState } from "react";
 import { AddContactDialog } from "@/components/AddContactDialog";
 import { ConversationList } from "@/components/ConversationList";
-import { ComposeIcon } from "@/components/icons";
+import { ComposeIcon, GroupAddIcon } from "@/components/icons";
 import { NewChatDialog } from "@/components/NewChatDialog";
+import { NewGroupDialog } from "@/components/NewGroupDialog";
 import { ProfileMenu } from "@/components/ProfileMenu";
 import { SearchBox } from "@/components/SearchBox";
 import { SearchResults } from "@/components/SearchResults";
@@ -17,12 +18,16 @@ export function Sidebar({ className = "" }: { className?: string }) {
   const [query, setQuery] = useState("");
   const [newChatOpen, setNewChatOpen] = useState(false);
   const [addContactOpen, setAddContactOpen] = useState(false);
+  const [newGroupOpen, setNewGroupOpen] = useState(false);
 
   return (
     <aside className={`shrink-0 flex-col border-border bg-sidebar md:border-r ${className}`}>
       <header className="flex h-header shrink-0 items-center gap-3 px-pane-x">
         <ProfileMenu me={me} onLogout={logout} />
         <h1 className="flex-1 text-header font-semibold text-fg">Chats</h1>
+        <IconButton label="New group" onClick={() => setNewGroupOpen(true)}>
+          <GroupAddIcon className="size-icon" />
+        </IconButton>
         <IconButton label="New chat" onClick={() => setNewChatOpen(true)}>
           <ComposeIcon className="size-icon" />
         </IconButton>
@@ -47,6 +52,7 @@ export function Sidebar({ className = "" }: { className?: string }) {
         }}
       />
       <AddContactDialog open={addContactOpen} onOpenChange={setAddContactOpen} />
+      <NewGroupDialog open={newGroupOpen} onOpenChange={setNewGroupOpen} />
     </aside>
   );
 }

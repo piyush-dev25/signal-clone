@@ -1,5 +1,5 @@
 import { GroupGlyph, PersonGlyph } from "@/components/icons";
-import type { Conversation } from "@/lib/api";
+import type { Conversation, Member } from "@/lib/api";
 import { colorForUser, initials, presetFor } from "@/lib/avatars";
 import { conversationTitle, otherMember } from "@/lib/conversations";
 
@@ -63,6 +63,16 @@ function OnlineDot({ size }: { size: AvatarSize }) {
         boxShadow: "0 0 0 var(--spacing-online-ring) var(--dot-ring, var(--color-surface))",
       }}
     />
+  );
+}
+
+/** A person (e.g. a group member) with their online dot. */
+export function PersonAvatar({ member, size = "contact" }: { member: Member; size?: AvatarSize }) {
+  return (
+    <div className="relative shrink-0">
+      <Avatar colorId={member.user_id} name={member.display_name} avatar={member.avatar} size={size} />
+      {member.online && <OnlineDot size={size} />}
+    </div>
   );
 }
 

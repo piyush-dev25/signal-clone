@@ -10,23 +10,26 @@ from sqlalchemy.types import TypeDecorator
 from app.config import settings
 
 
-def _make_engine(url: str):
-    kwargs: dict = {"connect_args": {"check_same_thread": False}}
-    if make_url(url).database in (None, "", ":memory:"):
-        # In-memory SQLite (tests): share one connection so every session sees the same tables.
-        kwargs["poolclass"] = StaticPool
-    return create_engine(url, **kwargs)
-
-
-engine = _make_engine(settings.database_url)
-
-
-@event.listens_for(engine, "connect")
 def _sqlite_pragmas(dbapi_connection, _record) -> None:
     cursor = dbapi_connection.cursor()
     cursor.execute("PRAGMA foreign_keys=ON")
     cursor.execute("PRAGMA journal_mode=WAL")
     cursor.close()
+
+
+def make_engine(url: str):
+    """SQLite engine with foreign keys and WAL on every connection."""
+    kwargs: dict = {"connect_args": {"check_same_thread": False}}
+    if make_url(url).database in (None, "", ":memory:"):
+        # In-memory SQLite (tests): one shared connection so every session sees the same tables.
+        # Fine for one request at a time; concurrent sessions would share a transaction.
+        kwargs["poolclass"] = StaticPool
+    new_engine = create_engine(url, **kwargs)
+    event.listen(new_engine, "connect", _sqlite_pragmas)
+    return new_engine
+
+
+engine = make_engine(settings.database_url)
 
 
 SessionLocal = sessionmaker(bind=engine, expire_on_commit=False)

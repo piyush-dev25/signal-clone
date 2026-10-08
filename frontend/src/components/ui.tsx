@@ -1,11 +1,12 @@
 import type { ButtonHTMLAttributes, InputHTMLAttributes, ReactNode, SelectHTMLAttributes } from "react";
 
-type ButtonVariant = "primary" | "secondary" | "ghost";
+type ButtonVariant = "primary" | "secondary" | "ghost" | "danger";
 
 const BUTTON_VARIANTS: Record<ButtonVariant, string> = {
   primary: "bg-accent text-on-accent hover:bg-accent-hover",
   secondary: "bg-input text-fg hover:bg-hover",
   ghost: "text-accent hover:bg-hover",
+  danger: "bg-danger text-on-accent hover:opacity-90",
 };
 
 export function Button({

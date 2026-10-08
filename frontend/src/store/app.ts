@@ -53,6 +53,8 @@ type AppState = {
   typing: Record<number, Record<number, true>>;
   meId: number | null;
   realtime: RealtimeConnection | null;
+  /** Last conversation I lost access to (removed, left, deleted); the open chat view leaves it. */
+  removedConversationId: number | null;
 
   setSession: (meId: number, realtime: RealtimeConnection) => void;
 
@@ -62,6 +64,7 @@ type AppState = {
   resync: () => Promise<void>;
   refreshConversations: () => Promise<void>;
   upsertConversation: (conversation: Conversation) => void;
+  removeConversation: (conversationId: number) => void;
   addContact: (contact: Contact) => void;
   setActiveConversation: (id: number | null) => void;
 
@@ -127,6 +130,7 @@ export const useAppStore = create<AppState>()((set, get) => {
     typing: {},
     meId: null,
     realtime: null,
+    removedConversationId: null,
 
     setSession: (meId, realtime) => set({ meId, realtime }),
 
@@ -170,7 +174,26 @@ export const useAppStore = create<AppState>()((set, get) => {
     upsertConversation: (conversation) =>
       set((state) => ({
         conversations: sortConversations([...state.conversations.filter((c) => c.id !== conversation.id), conversation]),
+        // Re-added to a group I had been removed from.
+        removedConversationId: state.removedConversationId === conversation.id ? null : state.removedConversationId,
       })),
+
+    removeConversation: (conversationId) => {
+      clearTimeout(readTimers.get(conversationId));
+      readTimers.delete(conversationId);
+      set((state) => {
+        const messagesByConversation = { ...state.messagesByConversation };
+        delete messagesByConversation[conversationId];
+        const typing = { ...state.typing };
+        delete typing[conversationId];
+        return {
+          conversations: state.conversations.filter((c) => c.id !== conversationId),
+          messagesByConversation,
+          typing,
+          removedConversationId: conversationId,
+        };
+      });
+    },
 
     addContact: (contact) =>
       set((state) => ({
@@ -400,6 +423,12 @@ export const useAppStore = create<AppState>()((set, get) => {
           break;
         case "presence":
           get().applyPresence(event.data);
+          break;
+        case "conversation_updated":
+          get().upsertConversation(event.data);
+          break;
+        case "conversation_removed":
+          get().removeConversation(event.data.conversation_id);
           break;
       }
     },

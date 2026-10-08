@@ -1,4 +1,4 @@
-from tests.live import connect, cursors, next_of, open_dm, ping, send, users  # noqa: F401  (users is a fixture)
+from tests.live import connect, cursors, next_of, open_dm, ping, send, settle, users  # noqa: F401  (users is a fixture)
 
 
 def read(client, user, conversation_id, message_id):
@@ -64,9 +64,7 @@ def test_read_pushes_receipt_to_sender_and_readers_other_tabs(live_client, users
     conv = open_dm(live_client, priya, rahul)
     message = send(live_client, priya, conv)  # Rahul offline: not yet delivered
     with connect(live_client, priya) as p, connect(live_client, rahul) as rahul_tab2:
-        # Rahul's pong means his connect-time delivery receipt was pushed; then flush it from Priya.
-        ping(rahul_tab2)
-        ping(p)
+        settle(p, rahul_tab2)  # drop the connect-time delivery receipts
         read(live_client, rahul, conv, message["id"])
         expected = {"conversation_id": conv, "user_id": rahul["id"], "read_up_to": message["id"]}
         assert next_of(p, "receipt_update") == expected

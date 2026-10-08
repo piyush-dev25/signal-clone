@@ -61,3 +61,13 @@ def cursors(db, conversation_id, user):
     db.expire_all()
     m = db.get(ConversationMember, (conversation_id, user["id"]))
     return m.last_delivered_message_id, m.last_read_message_id
+
+
+def settle(*sockets):
+    """Wait until every socket's connect-time work (presence, delivery receipts) is done and drained.
+
+    Round 1: each pong proves that socket's own connect handling, and everything it pushed to the
+    others, has happened. Round 2 drains whatever those pushes left in the other sockets."""
+    for _ in range(2):
+        for ws in sockets:
+            ping(ws)

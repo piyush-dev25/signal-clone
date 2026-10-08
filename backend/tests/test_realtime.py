@@ -1,6 +1,6 @@
 """Pushes over real (test) websockets. Uses live_client so REST and sockets share an event loop."""
 
-from tests.live import connect, cursors, next_of, open_dm, ping, send, users  # noqa: F401  (users is a fixture)
+from tests.live import connect, cursors, next_of, open_dm, ping, send, settle, users  # noqa: F401  (users is a fixture)
 
 
 def test_message_new_reaches_recipient_and_senders_other_tabs(live_client, users):
@@ -17,7 +17,7 @@ def test_connected_recipient_gets_delivered_and_sender_is_told(live_client, user
     priya, rahul = users["priya"], users["rahul"]
     conv = open_dm(live_client, priya, rahul)
     with connect(live_client, priya) as p, connect(live_client, rahul) as r:
-        ping(r)  # make sure Rahul's socket is registered
+        settle(p, r)  # both sockets registered, connect-time pushes drained
         message = send(live_client, priya, conv)
         next_of(p, "message_new")
         receipt = next_of(p, "receipt_update")
@@ -30,6 +30,7 @@ def test_offline_recipient_is_not_marked_delivered(live_client, users, db):
     priya, rahul = users["priya"], users["rahul"]
     conv = open_dm(live_client, priya, rahul)
     with connect(live_client, priya) as p:
+        settle(p)  # connect-time work done before sending
         send(live_client, priya, conv)
         next_of(p, "message_new")
         assert all(e["type"] != "receipt_update" for e in ping(p))

@@ -134,3 +134,31 @@ export const AlertIcon = (props: IconProps) => (
     <circle cx="8" cy="11.3" r="0.95" fill="var(--color-on-accent)" />
   </svg>
 );
+
+export const GroupAddIcon = (props: IconProps) => (
+  <Stroke {...props}>
+    <circle cx="9" cy="8" r="3.25" />
+    <path d="M2.75 19c.6-3.1 3.1-5 6.25-5s5.65 1.9 6.25 5" />
+    <path d="M15.5 5.2a3.25 3.25 0 0 1 0 5.6M19 8v6M16 11h6" />
+  </Stroke>
+);
+
+export const PencilIcon = (props: IconProps) => (
+  <Stroke {...props}>
+    <path d="M15.5 4.5a2.1 2.1 0 0 1 3 3L8 18l-4 1 1-4z" />
+  </Stroke>
+);
+
+export const CheckIcon = (props: IconProps) => (
+  <Stroke {...props}>
+    <path d="m5 12.5 4.5 4.5L19 7.5" />
+  </Stroke>
+);
+
+export const MoreIcon = (props: IconProps) => (
+  <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden {...props}>
+    <circle cx="12" cy="5.5" r="1.6" />
+    <circle cx="12" cy="12" r="1.6" />
+    <circle cx="12" cy="18.5" r="1.6" />
+  </svg>
+);

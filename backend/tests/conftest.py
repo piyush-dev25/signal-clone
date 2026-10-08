@@ -8,7 +8,7 @@ os.environ["CORS_ORIGINS"] = "http://localhost:3000"
 import pytest  # noqa: E402
 from fastapi.testclient import TestClient  # noqa: E402
 
-from app.db import Base, SessionLocal, engine  # noqa: E402
+from app.db import Base, SessionLocal, engine, make_engine  # noqa: E402
 from app.main import app  # noqa: E402
 from app.models import Conversation, ConversationMember, Message  # noqa: E402
 from app.realtime import presence  # noqa: E402
@@ -106,12 +106,24 @@ def make_group(db):
 
 
 @pytest.fixture
-def live_client(monkeypatch):
+def live_client(monkeypatch, tmp_path):
     """A TestClient whose REST calls and websockets share one event loop, so pushes scheduled by
-    REST handlers reach the test's sockets. The seed is disabled to keep the database empty."""
+    REST handlers reach the test's sockets. The seed is disabled to keep the database empty.
+
+    Live tests run several DB sessions at once (socket handlers, threadpool work, REST calls).
+    The in-memory engine shares one connection, so concurrent sessions would interleave inside
+    one transaction (one session's rollback undoing another's write). These tests therefore get
+    a throwaway file database with a real connection per session, like production."""
     monkeypatch.setattr("app.main.run_seed", lambda db: False)
+    file_engine = make_engine(f"sqlite:///{tmp_path / 'live.db'}")
+    Base.metadata.create_all(file_engine)
+    SessionLocal.configure(bind=file_engine)
     manager.clear()
-    with TestClient(app) as client:
-        yield client
-        client.portal.call(presence.cancel_all)  # on the app's loop, before it shuts down
-    manager.clear()
+    try:
+        with TestClient(app) as client:
+            yield client
+            client.portal.call(presence.cancel_all)  # on the app's loop, before it shuts down
+    finally:
+        manager.clear()
+        SessionLocal.configure(bind=engine)
+        file_engine.dispose()

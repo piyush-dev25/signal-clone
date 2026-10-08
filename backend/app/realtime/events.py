@@ -12,9 +12,12 @@ from sqlalchemy.orm import Session
 from starlette.concurrency import run_in_threadpool
 
 from app.db import SessionLocal
+from app.models import User
 from app.realtime.manager import manager
 from app.schemas.message import MessageOut
 from app.services import receipts
+from app.services.conversations import get_conversation_out
+from app.services.groups import GroupChange
 from app.services.membership import is_member, member_ids
 from app.services.messages import SendResult
 
@@ -75,3 +78,28 @@ async def relay_typing(user_id: int, data: Any) -> None:
     audience = await run_in_threadpool(_typing_audience, user_id, conversation_id)
     if audience:
         await push(audience, "typing", {"conversation_id": conversation_id, "user_id": user_id, "is_typing": is_typing})
+
+
+async def _push_group_change(change: GroupChange, snapshots: list[tuple[int, dict[str, Any]]]) -> None:
+    # Order matters: members (including new ones) get the conversation before its messages,
+    # so a new member's client already knows the chat when the system messages arrive.
+    for user_id, conversation in snapshots:
+        await push({user_id}, "conversation_updated", conversation)
+    for message in change.messages:
+        await push(change.member_ids, "message_new", message.model_dump(mode="json"))
+    if change.removed:
+        await push(change.removed, "conversation_removed", {"conversation_id": change.conversation_id})
+
+
+def schedule_group_change(background: BackgroundTasks, db: Session, change: GroupChange) -> None:
+    """After a group change: each current member gets the full conversation as *they* see it
+    (their own nicknames), then the new system messages; anyone who lost access is told so."""
+    if change.is_noop:
+        return
+    snapshots = []
+    if not change.deleted:
+        for user_id in sorted(change.member_ids):
+            viewer = db.get(User, user_id)
+            conversation = get_conversation_out(db, viewer, change.conversation_id)
+            snapshots.append((user_id, conversation.model_dump(mode="json")))
+    background.add_task(_push_group_change, change, snapshots)
