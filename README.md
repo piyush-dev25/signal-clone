@@ -4,7 +4,7 @@ A functional clone of the Signal messaging app: real-time 1:1 and group chat wit
 
 | | |
 |---|---|
-| **Frontend** | https://signal-clone-three-beryl.vercel.app |
+| **Frontend** | https://signal-clone-piyush-dev25.vercel.app |
 | **Backend** | https://signal-clone-g1pz.onrender.com (health: `/health`) |
 
 > The backend runs on Render's free tier, which sleeps after 15 minutes idle: the first request after a nap can take ~30–50 s while it wakes. `GET /health` is monitored every 5 minutes by an uptime pinger, which keeps it warm.
