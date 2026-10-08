@@ -200,7 +200,7 @@
   --radius-bubble: 18px;
   --radius-bubble-joined: 4px; /* corners where consecutive bubbles from one sender meet */
   --radius-quote: 8px;
-  --radius-toast: 10px;
+  --radius-toast: 8px;
 
   /* Structural sizes (spacing namespace → w-sidebar, h-header, h-list-item, …) */
   --spacing-sidebar: 320px;
@@ -221,7 +221,11 @@
   --spacing-bubble-cap: 560px; /* absolute cap on wide screens */
   --spacing-composer-max: 160px; /* the composer grows up to this, then scrolls */
   --spacing-receipt: 16px;
-  --spacing-toast: 360px;
+  --spacing-toast: 360px; /* max toast width */
+  --spacing-toast-x: 16px; /* toast padding beside the text */
+  --spacing-toast-y: 10px;
+  --spacing-toast-close: 24px; /* the toast's close button */
+  --spacing-toast-gap: 8px; /* space between the header line and the first toast */
   --spacing-message-action: 28px; /* reply / copy buttons beside a bubble */
 
   /* Avatar sizes */
