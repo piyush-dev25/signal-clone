@@ -6,11 +6,14 @@ import { usePathname, useRouter } from "next/navigation";
 import { type ReactNode, Suspense, useEffect, useRef, useState } from "react";
 import { SessionContext } from "@/components/session";
 import { Sidebar } from "@/components/Sidebar";
+import { Toaster } from "@/components/Toaster";
 import { Button } from "@/components/ui";
+import { useShortcuts } from "@/components/useShortcuts";
 import { ApiError, type User, getMe } from "@/lib/api";
 import { clearToken, getToken, redirectToLogin } from "@/lib/auth";
 import { type RealtimeConnection, connectRealtime } from "@/lib/ws";
 import { useAppStore } from "@/store/app";
+import { toast } from "@/store/toasts";
 
 type GateState = { status: "loading" } | { status: "error"; message: string } | { status: "ready"; me: User };
 
@@ -38,7 +41,22 @@ export default function AppLayout({ children }: LayoutProps<"/">) {
         store.load();
         // Every (re)connect also resyncs: it covers anything sent while we were disconnected,
         // including the gap between the REST load above and the first connect.
-        socketRef.current = connectRealtime(token, { onOpen: store.resync, onEvent: store.handleEvent });
+        let lost = false; // one "connection lost" toast per drop, "back online" when it returns
+        socketRef.current = connectRealtime(token, {
+          onOpen: () => {
+            if (lost) {
+              lost = false;
+              toast("Back online");
+            }
+            void store.resync();
+          },
+          onDisconnect: () => {
+            if (lost) return;
+            lost = true;
+            toast("Connection lost. Reconnecting…");
+          },
+          onEvent: store.handleEvent,
+        });
         store.setSession(me.id, socketRef.current);
         setState({ status: "ready", me });
       })
@@ -85,7 +103,7 @@ export default function AppLayout({ children }: LayoutProps<"/">) {
 
   const { me } = state;
   return (
-    <SessionContext.Provider value={{ me, logout }}>
+    <SessionContext.Provider value={{ me, logout, setMe: (user) => setState({ status: "ready", me: user }) }}>
       {/* Reading the URL needs a Suspense boundary under Cache Components. */}
       <Suspense fallback={null}>
         <Panes>{children}</Panes>
@@ -97,10 +115,12 @@ export default function AppLayout({ children }: LayoutProps<"/">) {
 /** Two panes from md up; below md one at a time: the list on "/", the chat on "/chat/[id]". */
 function Panes({ children }: { children: ReactNode }) {
   const inChat = usePathname().startsWith("/chat/");
+  useShortcuts();
   return (
     <div className="flex h-dvh w-full overflow-hidden bg-surface text-fg">
       <Sidebar className={`${inChat ? "hidden md:flex" : "flex"} w-full md:w-sidebar`} />
       <main className={`${inChat ? "flex" : "hidden md:flex"} min-w-0 flex-1 flex-col`}>{children}</main>
+      <Toaster />
     </div>
   );
 }

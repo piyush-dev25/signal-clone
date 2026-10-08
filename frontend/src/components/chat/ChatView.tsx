@@ -7,13 +7,15 @@ import { ConversationAvatar } from "@/components/Avatar";
 import { Composer } from "@/components/chat/Composer";
 import { MessageList } from "@/components/chat/MessageList";
 import { GroupInfoDialog } from "@/components/GroupInfoDialog";
-import { ArrowLeftIcon } from "@/components/icons";
+import { ArrowLeftIcon, PhoneIcon, VideoIcon } from "@/components/icons";
 import { useSession } from "@/components/session";
+import { IconButton } from "@/components/ui";
 import type { Conversation } from "@/lib/api";
 import { conversationTitle, otherMember, typingText } from "@/lib/conversations";
 import { lastSeenText } from "@/lib/time";
 import { useDocumentVisible } from "@/lib/useDocumentVisible";
 import { useAppStore } from "@/store/app";
+import { toast } from "@/store/toasts";
 
 const NOBODY_TYPING: Record<number, true> = {};
 
@@ -105,10 +107,16 @@ export function ChatView({ id }: { id: string }) {
         ) : (
           <>
             <ConversationAvatar conversation={conversation} meId={me.id} size="header" />
-            <div className="min-w-0">
+            <div className="min-w-0 flex-1">
               <h2 className="truncate text-header font-semibold text-fg">{conversationTitle(conversation, me.id)}</h2>
               {sub && <p className="truncate text-caption text-fg-secondary">{sub}</p>}
             </div>
+            <IconButton label="Video call" onClick={() => toast("Video calls are coming soon")}>
+              <VideoIcon className="size-icon" />
+            </IconButton>
+            <IconButton label="Voice call" onClick={() => toast("Voice calls are coming soon")}>
+              <PhoneIcon className="size-icon" />
+            </IconButton>
           </>
         )}
       </header>
@@ -118,8 +126,9 @@ export function ChatView({ id }: { id: string }) {
       <MessageList key={conversation.id} conversation={conversation} meId={me.id} />
       <Composer
         key={`composer-${conversation.id}`}
-        conversationId={conversation.id}
-        onSend={(body) => sendMessage(conversation.id, body, me.id)}
+        conversation={conversation}
+        meId={me.id}
+        onSend={(body, replyTo) => sendMessage(conversation.id, body, me.id, replyTo)}
       />
     </div>
   );

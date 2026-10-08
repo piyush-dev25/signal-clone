@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { Inter } from "next/font/google";
+import { THEME_SCRIPT } from "@/lib/theme";
 import "./globals.css";
 
 const inter = Inter({ subsets: ["latin"], variable: "--font-inter" });
@@ -17,9 +18,8 @@ export const viewport: Viewport = {
   interactiveWidget: "resizes-content",
 };
 
-// Runs before first paint so there is no light flash in dark mode. Follows the OS setting
-// (a manual toggle arrives in Phase 6).
-const THEME_SCRIPT = `(function(){try{var m=window.matchMedia("(prefers-color-scheme: dark)");var a=function(){document.documentElement.classList.toggle("dark",m.matches)};a();m.addEventListener("change",a)}catch(e){}})();`;
+// THEME_SCRIPT runs in <head> before first paint: it applies the saved theme (System / Light /
+// Dark, default System) so there is no flash, and follows OS changes only in System.
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (

@@ -162,3 +162,52 @@ export const MoreIcon = (props: IconProps) => (
     <circle cx="12" cy="18.5" r="1.6" />
   </svg>
 );
+
+export const ReplyIcon = (props: IconProps) => (
+  <Stroke {...props}>
+    <path d="M9.5 6 4 11.5 9.5 17" />
+    <path d="M4.5 11.5H14a6 6 0 0 1 6 6V19" />
+  </Stroke>
+);
+
+export const CopyIcon = (props: IconProps) => (
+  <Stroke {...props}>
+    <rect x="8.5" y="8.5" width="11" height="11" rx="2" />
+    <path d="M15.5 8.5V6.5a2 2 0 0 0-2-2h-7a2 2 0 0 0-2 2v7a2 2 0 0 0 2 2h2" />
+  </Stroke>
+);
+
+export const PhoneIcon = (props: IconProps) => (
+  <Stroke {...props}>
+    <path d="M5.2 3.8h3l1.5 4-2 1.3a11 11 0 0 0 5.2 5.2l1.3-2 4 1.5v3a2 2 0 0 1-2.2 2A16.5 16.5 0 0 1 3.2 6a2 2 0 0 1 2-2.2Z" />
+  </Stroke>
+);
+
+export const VideoIcon = (props: IconProps) => (
+  <Stroke {...props}>
+    <rect x="3" y="6.5" width="12.5" height="11" rx="2.5" />
+    <path d="m15.5 10.5 5-3v9l-5-3" />
+  </Stroke>
+);
+
+export const SettingsIcon = (props: IconProps) => (
+  <Stroke {...props}>
+    <circle cx="12" cy="12" r="3" />
+    <path d="M12 2.8v2.4M12 18.8v2.4M21.2 12h-2.4M5.2 12H2.8M18.5 5.5l-1.7 1.7M7.2 16.8l-1.7 1.7M18.5 18.5l-1.7-1.7M7.2 7.2 5.5 5.5" />
+  </Stroke>
+);
+
+export const StoriesIcon = (props: IconProps) => (
+  <Stroke {...props}>
+    <circle cx="12" cy="12" r="8.5" strokeDasharray="4 2.2" />
+    <circle cx="12" cy="12" r="4" />
+  </Stroke>
+);
+
+export const DevicesIcon = (props: IconProps) => (
+  <Stroke {...props}>
+    <rect x="2.8" y="5" width="13" height="10" rx="1.5" />
+    <path d="M6 19h6.5" />
+    <rect x="16.5" y="9" width="4.8" height="10" rx="1.2" />
+  </Stroke>
+);

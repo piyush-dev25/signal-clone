@@ -22,6 +22,7 @@ import {
 import { memberName } from "@/lib/conversations";
 import { formatPhone } from "@/lib/phone";
 import { useAppStore } from "@/store/app";
+import { toast } from "@/store/toasts";
 
 type Props = { conversation: Conversation; open: boolean; onOpenChange: (open: boolean) => void };
 
@@ -72,16 +73,25 @@ function GroupInfo({ conversation, onClose }: { conversation: Conversation; onCl
 
   function saveName(event: FormEvent) {
     event.preventDefault();
-    run(() => renameGroup(conversation.id, nameDraft.trim()), () => setEditingName(false));
+    run(
+      () => renameGroup(conversation.id, nameDraft.trim()),
+      () => {
+        setEditingName(false);
+        toast("Group renamed");
+      },
+    );
   }
 
   function leave() {
+    // So the server's conversation_removed for this group isn't announced as "you were removed".
+    useAppStore.getState().leaving.add(conversation.id);
     run(
       async () => {
         await leaveGroup(conversation.id);
         return null;
       },
       () => {
+        toast(`You left “${conversation.name}”`);
         removeConversation(conversation.id);
         onClose();
         router.replace("/");
@@ -108,6 +118,7 @@ function GroupInfo({ conversation, onClose }: { conversation: Conversation; onCl
             disabled={busy || toAdd.length === 0}
             onClick={() =>
               run(() => addGroupMembers(conversation.id, toAdd), () => {
+                toast(toAdd.length === 1 ? "Member added" : `${toAdd.length} members added`);
                 setToAdd([]);
                 setView("info");
               })
@@ -215,7 +226,12 @@ function GroupInfo({ conversation, onClose }: { conversation: Conversation; onCl
             canManage={isAdmin && member.user_id !== me.id}
             busy={busy}
             onSetRole={(role) => run(() => setGroupRole(conversation.id, member.user_id, role))}
-            onRemove={() => run(() => removeGroupMember(conversation.id, member.user_id))}
+            onRemove={() =>
+              run(
+                () => removeGroupMember(conversation.id, member.user_id),
+                () => toast(`Removed ${memberName(member)}`),
+              )
+            }
           />
         ))}
       </ul>

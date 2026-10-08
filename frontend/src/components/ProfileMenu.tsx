@@ -1,12 +1,30 @@
 "use client";
 
 import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
+import type { ReactNode } from "react";
 import { Avatar } from "@/components/Avatar";
-import { LogoutIcon } from "@/components/icons";
+import { DevicesIcon, LogoutIcon, SettingsIcon, StoriesIcon } from "@/components/icons";
 import type { User } from "@/lib/api";
 import { formatPhone } from "@/lib/phone";
+import { isMac } from "@/lib/shortcuts";
+import { toast } from "@/store/toasts";
 
-export function ProfileMenu({ me, onLogout }: { me: User; onLogout: () => void }) {
+type Props = { me: User; onLogout: () => void; onOpenSettings: () => void };
+
+function Item({ icon, children, hint, onSelect }: { icon: ReactNode; children: ReactNode; hint?: string; onSelect: () => void }) {
+  return (
+    <DropdownMenu.Item
+      onSelect={onSelect}
+      className="flex cursor-pointer items-center gap-2 rounded-control px-2 py-1.5 text-body outline-none data-highlighted:bg-hover"
+    >
+      <span className="text-fg-secondary">{icon}</span>
+      <span className="flex-1">{children}</span>
+      {hint && <kbd className="font-sans text-caption text-fg-tertiary">{hint}</kbd>}
+    </DropdownMenu.Item>
+  );
+}
+
+export function ProfileMenu({ me, onLogout, onOpenSettings }: Props) {
   return (
     <DropdownMenu.Root>
       <DropdownMenu.Trigger
@@ -29,13 +47,19 @@ export function ProfileMenu({ me, onLogout }: { me: User; onLogout: () => void }
             </div>
           </div>
           <DropdownMenu.Separator className="my-1 h-px bg-border" />
-          <DropdownMenu.Item
-            onSelect={onLogout}
-            className="flex cursor-pointer items-center gap-2 rounded-control px-2 py-1.5 text-body outline-none data-highlighted:bg-hover"
-          >
-            <LogoutIcon className="size-4 text-fg-secondary" />
+          <Item icon={<SettingsIcon className="size-4" />} hint={isMac() ? "⌥," : "Alt+,"} onSelect={onOpenSettings}>
+            Settings
+          </Item>
+          <Item icon={<StoriesIcon className="size-4" />} onSelect={() => toast("Stories are coming soon")}>
+            Stories
+          </Item>
+          <Item icon={<DevicesIcon className="size-4" />} onSelect={() => toast("Linked devices are coming soon")}>
+            Linked devices
+          </Item>
+          <DropdownMenu.Separator className="my-1 h-px bg-border" />
+          <Item icon={<LogoutIcon className="size-4" />} onSelect={onLogout}>
             Log out
-          </DropdownMenu.Item>
+          </Item>
         </DropdownMenu.Content>
       </DropdownMenu.Portal>
     </DropdownMenu.Root>

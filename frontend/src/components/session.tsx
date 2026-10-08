@@ -3,7 +3,7 @@
 import { createContext, useContext } from "react";
 import type { User } from "@/lib/api";
 
-export type Session = { me: User; logout: () => void };
+export type Session = { me: User; logout: () => void; setMe: (me: User) => void };
 
 export const SessionContext = createContext<Session | null>(null);
 

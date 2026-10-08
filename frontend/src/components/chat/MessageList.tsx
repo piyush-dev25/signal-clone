@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useLayoutEffect, useRef } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { Avatar } from "@/components/Avatar";
 import { MessageBubble } from "@/components/chat/MessageBubble";
 import { Button } from "@/components/ui";
@@ -9,11 +9,13 @@ import { memberName, systemMessageText } from "@/lib/conversations";
 import { type ChatMessage, messageStatus } from "@/lib/receipts";
 import { dayKey, dayLabel } from "@/lib/time";
 import { useAppStore } from "@/store/app";
+import { toast } from "@/store/toasts";
 
 const RUN_WINDOW_MS = 5 * 60_000; // consecutive messages within 5 minutes form one run
 const NEAR_BOTTOM_PX = 120;
 const LOAD_OLDER_PX = 150;
 const NO_MESSAGES: ChatMessage[] = [];
+const HIGHLIGHT_MS = 1_500;
 
 type Row =
   | { kind: "day"; key: string; label: string }
@@ -99,6 +101,9 @@ export function MessageList({ conversation, meId }: { conversation: Conversation
   const loadLatest = useAppStore((s) => s.loadLatest);
   const loadOlder = useAppStore((s) => s.loadOlder);
   const retryMessage = useAppStore((s) => s.retryMessage);
+  const setReplyingTo = useAppStore((s) => s.setReplyingTo);
+  const [highlightId, setHighlightId] = useState<number | null>(null);
+  const highlightTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const typingMap = useAppStore((s) => s.typing[conversation.id]);
   const typingIds = Object.keys(typingMap ?? {}).map(Number);
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -152,6 +157,28 @@ export function MessageList({ conversation, meId }: { conversation: Conversation
     if (el.scrollTop < LOAD_OLDER_PX && chat?.hasMore && !chat.loadingOlder) void loadOlder(conversation.id);
   }
 
+  useEffect(() => () => clearTimeout(highlightTimer.current), []);
+
+  /** Clicking a quote: scroll to the original and flash it, if it's loaded. */
+  function jumpTo(messageId: number) {
+    const target = scrollRef.current?.querySelector<HTMLElement>(`[data-message-id="${messageId}"]`);
+    if (!target) {
+      toast("Original message isn't loaded");
+      return;
+    }
+    target.scrollIntoView({ block: "center", behavior: "smooth" });
+    setHighlightId(messageId);
+    clearTimeout(highlightTimer.current);
+    highlightTimer.current = setTimeout(() => setHighlightId(null), HIGHLIGHT_MS);
+  }
+
+  function copy(text: string) {
+    navigator.clipboard
+      .writeText(text)
+      .then(() => toast("Copied"))
+      .catch(() => toast("Couldn't copy the text"));
+  }
+
   const rows = buildRows(messages, conversation, meId);
   const memberById = new Map(conversation.members.map((m) => [m.user_id, m]));
 
@@ -200,7 +227,11 @@ export function MessageList({ conversation, meId }: { conversation: Conversation
             sender={memberById.get(message.sender_id)}
             quotedAuthor={quoted ? (quoted.sender_id === meId ? "You" : quotedMember ? memberName(quotedMember) : "") : null}
             status={mine ? messageStatus(message, conversation, meId) : null}
+            highlighted={highlightId !== null && message.id === highlightId}
             onRetry={() => message.client_id && retryMessage(conversation.id, message.client_id)}
+            onReply={() => setReplyingTo({ conversationId: conversation.id, message })}
+            onCopy={() => copy(message.body ?? "")}
+            onQuoteClick={jumpTo}
           />
         );
       })}

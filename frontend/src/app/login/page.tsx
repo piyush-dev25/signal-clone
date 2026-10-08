@@ -3,10 +3,10 @@
 import { useRouter } from "next/navigation";
 import { type FormEvent, type ReactNode, useEffect, useState } from "react";
 import { Avatar } from "@/components/Avatar";
+import { AvatarPicker } from "@/components/AvatarPicker";
 import { Button, ErrorText, SelectField, TextField } from "@/components/ui";
 import { ApiError, type User, getMe, requestOtp, updateMe, verifyOtp } from "@/lib/api";
 import { getToken, setToken } from "@/lib/auth";
-import { PRESET_KEYS } from "@/lib/avatars";
 import { COUNTRY_CODES, DEFAULT_COUNTRY_CODE, buildPhone } from "@/lib/phone";
 
 const OTP_HINT = "123456";
@@ -218,31 +218,13 @@ function Onboarding({ user, onDone }: { user: User; onDone: () => void }) {
     }
   }
 
-  const choices: (string | null)[] = [null, ...PRESET_KEYS.map((key) => `preset:${key}`)];
-
   return (
     <form onSubmit={save} className="flex flex-col gap-4">
       <StepHeading title="Set up your profile">Your name and photo are visible to people you message.</StepHeading>
       <div className="flex justify-center">
         <Avatar colorId={user.id} name={name} avatar={avatar} size="hero" />
       </div>
-      <div className="grid grid-cols-5 gap-2" role="radiogroup" aria-label="Avatar">
-        {choices.map((choice) => (
-          <button
-            key={choice ?? "initials"}
-            type="button"
-            role="radio"
-            aria-checked={avatar === choice}
-            aria-label={choice ? choice.slice("preset:".length) : "Initials"}
-            onClick={() => setAvatar(choice)}
-            className={`flex justify-center rounded-full p-0.5 ring-2 ${
-              avatar === choice ? "ring-accent" : "ring-transparent hover:ring-border"
-            }`}
-          >
-            <Avatar colorId={user.id} name={name} avatar={choice} size="picker" />
-          </button>
-        ))}
-      </div>
+      <AvatarPicker userId={user.id} name={name} value={avatar} onChange={setAvatar} />
       <TextField
         aria-label="Display name"
         autoFocus

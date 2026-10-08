@@ -14,6 +14,8 @@ type Handlers = {
   /** Every successful (re)connect: the caller refetches whatever it may have missed. */
   onOpen: () => void;
   onEvent: (event: ServerEvent) => void;
+  /** An open connection dropped (not called for failed reconnect attempts, close(), or 4401). */
+  onDisconnect?: () => void;
 };
 
 export type RealtimeConnection = {
@@ -70,13 +72,16 @@ export function connectRealtime(token: string, handlers: Handlers): RealtimeConn
         redirectToLogin();
         return;
       }
+      const wasOpen = heartbeat !== undefined; // the heartbeat only starts once open
       abandon(ws);
+      if (wasOpen) handlers.onDisconnect?.();
     };
   }
 
   function cleanup() {
     clearTimeout(connectTimeout);
     clearInterval(heartbeat);
+    heartbeat = undefined;
     socket = null;
   }
 

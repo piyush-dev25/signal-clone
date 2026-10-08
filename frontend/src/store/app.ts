@@ -19,6 +19,7 @@ import { newClientId } from "@/lib/ids";
 import { isNewer, mergeMessages } from "@/lib/messages";
 import type { ChatMessage } from "@/lib/receipts";
 import type { RealtimeConnection } from "@/lib/ws";
+import { toast } from "@/store/toasts";
 
 type Status = "idle" | "loading" | "ready" | "error";
 
@@ -42,6 +43,8 @@ function latestSavedId(conversation: Conversation, chat: ChatState | undefined):
   return Math.max(conversation.last_message?.id ?? 0, fromChat);
 }
 
+export type AppDialog = "newChat" | "newGroup" | "addContact" | "settings";
+
 type AppState = {
   status: Status;
   error: string | null;
@@ -58,6 +61,20 @@ type AppState = {
 
   setSession: (meId: number, realtime: RealtimeConnection) => void;
 
+  /** The message I'm replying to, for the open chat's composer. */
+  replyingTo: { conversationId: number; message: ChatMessage } | null;
+  setReplyingTo: (reply: { conversationId: number; message: ChatMessage } | null) => void;
+  /** Sidebar dialogs live here so keyboard shortcuts can open them. */
+  dialog: AppDialog | null;
+  openDialog: (dialog: AppDialog) => void;
+  closeDialog: () => void;
+  searchQuery: string;
+  setSearchQuery: (query: string) => void;
+  /** Group ids I'm leaving myself (so their conversation_removed isn't announced as a removal). */
+  leaving: Set<number>;
+  /** My display name/avatar changed: update my own entry in every conversation. */
+  applyMyProfile: (me: { id: number; display_name: string; avatar: string | null }) => void;
+
   /** First load after login (shows loading/error states in the sidebar). */
   load: () => Promise<void>;
   /** Silent catch-up after every socket (re)connect: conversations + the open chat's latest page. */
@@ -70,7 +87,7 @@ type AppState = {
 
   loadLatest: (conversationId: number) => Promise<void>;
   loadOlder: (conversationId: number) => Promise<void>;
-  sendMessage: (conversationId: number, body: string, meId: number) => void;
+  sendMessage: (conversationId: number, body: string, meId: number, replyTo?: ChatMessage | null) => void;
   retryMessage: (conversationId: number, clientId: string) => void;
   receiveMessage: (message: ChatMessage) => void;
   applyReceipt: (update: ReceiptUpdate) => void;
@@ -111,6 +128,7 @@ export const useAppStore = create<AppState>()((set, get) => {
       get().receiveMessage(saved);
     } catch (err) {
       if (err instanceof ApiError && err.status === 401) return; // redirecting to /login
+      toast("Message not sent. Tap it to retry.");
       patchChat(message.conversation_id, (chat) => ({
         // Only if it's still unsaved: message_new may have delivered the saved copy meanwhile.
         messages: chat.messages.map((m) =>
@@ -131,8 +149,31 @@ export const useAppStore = create<AppState>()((set, get) => {
     meId: null,
     realtime: null,
     removedConversationId: null,
+    replyingTo: null,
+    dialog: null,
+    searchQuery: "",
+    leaving: new Set(),
 
     setSession: (meId, realtime) => set({ meId, realtime }),
+
+    setReplyingTo: (reply) => set({ replyingTo: reply }),
+    openDialog: (dialog) => set({ dialog }),
+    closeDialog: () => set({ dialog: null }),
+    setSearchQuery: (query) => set({ searchQuery: query }),
+
+    applyMyProfile: (me) =>
+      set((state) => ({
+        conversations: state.conversations.map((c) =>
+          c.members.some((m) => m.user_id === me.id)
+            ? {
+                ...c,
+                members: c.members.map((m) =>
+                  m.user_id === me.id ? { ...m, display_name: me.display_name, avatar: me.avatar } : m,
+                ),
+              }
+            : c,
+        ),
+      })),
 
     load: async () => {
       set({ status: "loading", error: null });
@@ -200,7 +241,12 @@ export const useAppStore = create<AppState>()((set, get) => {
         contacts: sortContacts([...state.contacts.filter((c) => c.id !== contact.id), contact]),
       })),
 
-    setActiveConversation: (id) => set({ activeConversationId: id }),
+    setActiveConversation: (id) =>
+      set((state) => ({
+        activeConversationId: id,
+        // A reply belongs to one chat: switching chats drops it.
+        replyingTo: state.replyingTo && state.replyingTo.conversationId !== id ? null : state.replyingTo,
+      })),
 
     loadLatest: async (conversationId) => {
       if (!get().messagesByConversation[conversationId]) patchChat(conversationId, () => ({}));
@@ -244,7 +290,7 @@ export const useAppStore = create<AppState>()((set, get) => {
       }
     },
 
-    sendMessage: (conversationId, body, meId) => {
+    sendMessage: (conversationId, body, meId, replyTo) => {
       const message: ChatMessage = {
         id: 0,
         conversation_id: conversationId,
@@ -252,7 +298,10 @@ export const useAppStore = create<AppState>()((set, get) => {
         type: "text",
         body,
         meta: null,
-        reply_to: null,
+        // The quote shows right away; deliver() sends reply_to_id from it.
+        reply_to: replyTo
+          ? { id: replyTo.id, sender_id: replyTo.sender_id, type: replyTo.type, body: replyTo.body }
+          : null,
         client_id: newClientId(),
         created_at: new Date().toISOString(),
         local: "sending",
@@ -427,9 +476,15 @@ export const useAppStore = create<AppState>()((set, get) => {
         case "conversation_updated":
           get().upsertConversation(event.data);
           break;
-        case "conversation_removed":
+        case "conversation_removed": {
+          // Not on screen otherwise: the chat just disappears. My own "leave" has its own toast.
+          const { leaving, conversations } = get();
+          const gone = conversations.find((c) => c.id === event.data.conversation_id);
+          if (gone && !leaving.has(gone.id)) toast(`You're no longer in ${gone.name ?? "this group"}`);
+          leaving.delete(event.data.conversation_id);
           get().removeConversation(event.data.conversation_id);
           break;
+        }
       }
     },
   };

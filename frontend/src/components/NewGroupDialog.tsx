@@ -8,6 +8,7 @@ import { Dialog } from "@/components/Dialog";
 import { Button, ErrorText, TextField } from "@/components/ui";
 import { ApiError, createGroup } from "@/lib/api";
 import { useAppStore } from "@/store/app";
+import { toast } from "@/store/toasts";
 
 const MAX_NAME = 50;
 
@@ -39,6 +40,7 @@ function NewGroupFlow({ onDone }: { onDone: () => void }) {
     try {
       const conversation = await createGroup(name.trim(), selected);
       upsertConversation(conversation);
+      toast(`Created “${conversation.name}”`);
       onDone();
       router.push(`/chat/${conversation.id}`);
     } catch (err) {
