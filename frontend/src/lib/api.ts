@@ -41,6 +41,8 @@ export type SystemMeta = {
   target_name?: string;
 };
 
+export type Reaction = { user_id: number; emoji: string };
+
 export type Message = {
   id: number;
   conversation_id: number;
@@ -51,6 +53,8 @@ export type Message = {
   reply_to: { id: number; sender_id: number; type: "text" | "system"; body: string | null } | null;
   client_id: string | null;
   created_at: string;
+  /** One per person, in the order they reacted. */
+  reactions: Reaction[];
 };
 
 export type Member = {
@@ -98,7 +102,11 @@ export type ServerEvent =
   | { type: "presence"; data: PresenceEvent }
   | { type: "conversation_updated"; data: Conversation }
   | { type: "conversation_removed"; data: { conversation_id: number } }
+  | { type: "reaction_update"; data: ReactionUpdate }
   | { type: "pong"; data: Record<string, never> };
+
+/** The message's full current reaction list (a snapshot, not a delta). */
+export type ReactionUpdate = { conversation_id: number; message_id: number; reactions: Reaction[] };
 
 export type ReadCursors = { conversation_id: number; last_read: number; last_delivered: number };
 
@@ -208,3 +216,11 @@ export const setGroupRole = (conversationId: number, userId: number, role: "admi
 
 export const leaveGroup = (conversationId: number) =>
   api<null>(`/conversations/${conversationId}/leave`, { method: "POST" });
+
+// --- reactions (one per person per message; both calls return the message's current list) ---
+
+export const setReaction = (messageId: number, emoji: string) =>
+  api<Reaction[]>(`/messages/${messageId}/reaction`, { method: "PUT", body: { emoji } });
+
+export const removeReaction = (messageId: number) =>
+  api<Reaction[]>(`/messages/${messageId}/reaction`, { method: "DELETE" });

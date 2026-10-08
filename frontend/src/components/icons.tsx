@@ -211,3 +211,11 @@ export const DevicesIcon = (props: IconProps) => (
     <rect x="16.5" y="9" width="4.8" height="10" rx="1.2" />
   </Stroke>
 );
+
+export const SmileIcon = (props: IconProps) => (
+  <Stroke {...props}>
+    <circle cx="12" cy="12" r="8.5" />
+    <path d="M8.5 14.2a4.2 4.2 0 0 0 7 0" />
+    <path d="M9.2 9.8h.01M14.8 9.8h.01" strokeWidth={2.4} />
+  </Stroke>
+);

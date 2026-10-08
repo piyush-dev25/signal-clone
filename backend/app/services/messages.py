@@ -9,6 +9,7 @@ from app.models import Message, User
 from app.schemas.message import MessageOut, ReplyToOut
 from app.services.errors import BadRequest
 from app.services.membership import member_ids, require_member
+from app.services.reactions import reactions_for
 
 
 @dataclass
@@ -19,7 +20,8 @@ class SendResult:
 
 
 def to_message_out(db: Session, messages: Sequence[Message]) -> list[MessageOut]:
-    """Serialize messages, loading every quoted message in one query."""
+    """Serialize messages, loading every quoted message and all reactions in one query each."""
+    reactions = reactions_for(db, [m.id for m in messages])
     reply_ids = {m.reply_to_id for m in messages if m.reply_to_id is not None}
     replies = (
         {r.id: r for r in db.scalars(select(Message).where(Message.id.in_(reply_ids)))} if reply_ids else {}
@@ -42,6 +44,7 @@ def to_message_out(db: Session, messages: Sequence[Message]) -> list[MessageOut]
                 ),
                 client_id=m.client_id,
                 created_at=m.created_at,
+                reactions=reactions.get(m.id, []),
             )
         )
     return out

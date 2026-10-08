@@ -8,7 +8,7 @@ from fastapi.responses import JSONResponse
 import app.models  # noqa: F401  (registers every table on Base.metadata)
 from app.config import settings
 from app.db import Base, SessionLocal, engine
-from app.routers import auth, contacts, conversations, groups, health, me, messages, search, ws
+from app.routers import auth, contacts, conversations, groups, health, me, messages, reactions, search, ws
 from app.seed import run_seed
 from app.services.errors import ServiceError
 
@@ -44,5 +44,6 @@ app.include_router(contacts.router)
 app.include_router(conversations.router)
 app.include_router(groups.router)
 app.include_router(messages.router)
+app.include_router(reactions.router)
 app.include_router(search.router)
 app.include_router(ws.router)

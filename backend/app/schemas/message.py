@@ -4,6 +4,11 @@ from typing import Annotated, Any
 from pydantic import BaseModel, StringConstraints
 
 
+class ReactionOut(BaseModel):
+    user_id: int
+    emoji: str
+
+
 class ReplyToOut(BaseModel):
     id: int
     sender_id: int
@@ -21,6 +26,7 @@ class MessageOut(BaseModel):
     reply_to: ReplyToOut | None
     client_id: str | None
     created_at: datetime
+    reactions: list[ReactionOut] = []
 
 
 class SendMessageIn(BaseModel):

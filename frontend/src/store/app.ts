@@ -6,6 +6,8 @@ import {
   MESSAGE_PAGE_SIZE,
   type Message,
   type PresenceEvent,
+  type Reaction,
+  type ReactionUpdate,
   type ReceiptUpdate,
   type ServerEvent,
   listContacts,
@@ -13,10 +15,13 @@ import {
   listMessages,
   markRead as postRead,
   postMessage,
+  removeReaction,
+  setReaction,
 } from "@/lib/api";
 import { sortContacts, sortConversations } from "@/lib/conversations";
 import { newClientId } from "@/lib/ids";
 import { isNewer, mergeMessages } from "@/lib/messages";
+import { myReaction, toggleReaction as toggleReactionList, withMine } from "@/lib/reactions";
 import type { ChatMessage } from "@/lib/receipts";
 import type { RealtimeConnection } from "@/lib/ws";
 import { toast } from "@/store/toasts";
@@ -97,6 +102,10 @@ type AppState = {
   clearTyping: () => void;
   sendTyping: (conversationId: number, isTyping: boolean) => void;
   applyPresence: (presence: PresenceEvent) => void;
+  /** React with `emoji` (or remove it if it's already mine). Optimistic, rolled back on failure. */
+  toggleReaction: (conversationId: number, messageId: number, emoji: string) => void;
+  /** reaction_update from the server: replace that message's list (ignored if it isn't loaded). */
+  applyReactionUpdate: (update: ReactionUpdate) => void;
   handleEvent: (event: ServerEvent) => void;
 };
 
@@ -116,6 +125,15 @@ export const useAppStore = create<AppState>()((set, get) => {
         messagesByConversation: { ...state.messagesByConversation, [conversationId]: { ...chat, ...patch(chat) } },
       };
     });
+  }
+
+  /** Replace one loaded message's reactions. Conversations, previews and unread are untouched. */
+  function setMessageReactions(conversationId: number, messageId: number, reactions: Reaction[]) {
+    const chat = get().messagesByConversation[conversationId];
+    if (!chat?.messages.some((m) => m.id === messageId)) return;
+    patchChat(conversationId, (c) => ({
+      messages: c.messages.map((m) => (m.id === messageId ? { ...m, reactions } : m)),
+    }));
   }
 
   async function deliver(message: ChatMessage) {
@@ -298,6 +316,7 @@ export const useAppStore = create<AppState>()((set, get) => {
         type: "text",
         body,
         meta: null,
+        reactions: [],
         // The quote shows right away; deliver() sends reply_to_id from it.
         reply_to: replyTo
           ? { id: replyTo.id, sender_id: replyTo.sender_id, type: replyTo.type, body: replyTo.body }
@@ -457,6 +476,27 @@ export const useAppStore = create<AppState>()((set, get) => {
         contacts: state.contacts.map((c) => (c.user_id === user_id ? { ...c, last_seen } : c)),
       })),
 
+    toggleReaction: (conversationId, messageId, emoji) => {
+      const { meId, messagesByConversation } = get();
+      const message = messagesByConversation[conversationId]?.messages.find((m) => m.id === messageId);
+      if (meId === null || !message) return;
+      const previous = myReaction(message.reactions, meId);
+      const { next, action } = toggleReactionList(message.reactions, meId, emoji);
+      setMessageReactions(conversationId, messageId, next);
+      (action === "remove" ? removeReaction(messageId) : setReaction(messageId, emoji))
+        .then((reactions) => setMessageReactions(conversationId, messageId, reactions))
+        .catch((err: unknown) => {
+          if (err instanceof ApiError && err.status === 401) return; // redirecting to /login
+          // Put back only *my* entry, so other people's reactions that arrived meanwhile survive.
+          const current = get().messagesByConversation[conversationId]?.messages.find((m) => m.id === messageId);
+          if (current) setMessageReactions(conversationId, messageId, withMine(current.reactions, meId, previous));
+          toast("Couldn't send reaction");
+        });
+    },
+
+    applyReactionUpdate: ({ conversation_id, message_id, reactions }) =>
+      setMessageReactions(conversation_id, message_id, reactions),
+
     handleEvent: (event) => {
       switch (event.type) {
         case "message_new":
@@ -475,6 +515,9 @@ export const useAppStore = create<AppState>()((set, get) => {
           break;
         case "conversation_updated":
           get().upsertConversation(event.data);
+          break;
+        case "reaction_update":
+          get().applyReactionUpdate(event.data);
           break;
         case "conversation_removed": {
           // Not on screen otherwise: the chat just disappears. My own "leave" has its own toast.

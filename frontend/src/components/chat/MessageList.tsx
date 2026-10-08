@@ -102,6 +102,7 @@ export function MessageList({ conversation, meId }: { conversation: Conversation
   const loadOlder = useAppStore((s) => s.loadOlder);
   const retryMessage = useAppStore((s) => s.retryMessage);
   const setReplyingTo = useAppStore((s) => s.setReplyingTo);
+  const toggleReaction = useAppStore((s) => s.toggleReaction);
   const [highlightId, setHighlightId] = useState<number | null>(null);
   const highlightTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const typingMap = useAppStore((s) => s.typing[conversation.id]);
@@ -135,6 +136,10 @@ export function MessageList({ conversation, meId }: { conversation: Conversation
       el.scrollTop = el.scrollHeight; // new message: follow if we were at the bottom or it's ours
     } else if (typingIds.length !== prev.typing && nearBottom.current) {
       el.scrollTop = el.scrollHeight; // keep the typing bubble in view
+    } else if (nearBottom.current) {
+      // Something else changed height (e.g. reaction chips appeared or went away): stay at the
+      // bottom if that's where the reader was. Scrolled-up readers keep their position.
+      el.scrollTop = el.scrollHeight;
     }
     snapshot.current = {
       conversationId: conversation.id,
@@ -179,11 +184,18 @@ export function MessageList({ conversation, meId }: { conversation: Conversation
       .catch(() => toast("Couldn't copy the text"));
   }
 
+  /** Names for reaction tooltips; a member who has left keeps their reaction but not a name. */
+  function nameOf(userId: number): string {
+    if (userId === meId) return "You";
+    const member = memberById.get(userId);
+    return member ? memberName(member) : "Someone";
+  }
+
   const rows = buildRows(messages, conversation, meId);
   const memberById = new Map(conversation.members.map((m) => [m.user_id, m]));
 
   return (
-    <div ref={scrollRef} onScroll={onScroll} className="min-h-0 flex-1 overflow-y-auto pb-3">
+    <div ref={scrollRef} onScroll={onScroll} data-message-scroller className="min-h-0 flex-1 overflow-y-auto pb-3">
       {chat?.hasMore && (
         <div className="flex justify-center pt-3">
           <Button variant="ghost" disabled={chat.loadingOlder} onClick={() => void loadOlder(conversation.id)}>
@@ -232,6 +244,9 @@ export function MessageList({ conversation, meId }: { conversation: Conversation
             onReply={() => setReplyingTo({ conversationId: conversation.id, message })}
             onCopy={() => copy(message.body ?? "")}
             onQuoteClick={jumpTo}
+            meId={meId}
+            nameOf={nameOf}
+            onReact={(emoji) => toggleReaction(conversation.id, message.id, emoji)}
           />
         );
       })}

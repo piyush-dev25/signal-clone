@@ -31,8 +31,9 @@ Any other valid number signs up a new account (name and avatar on first login). 
 3. Open the Priya ↔ Rahul chat in both. Send a message: it appears instantly on the other side, and the ticks go **sent → delivered → read** as soon as the other window has the chat open.
 4. Start typing: the other window shows "typing…" in the header, the chat and the sidebar.
 5. Hover a message → **Reply**, then send; the quote appears in both windows. Click the quote to jump to the original.
-6. Click **New group** (next to New chat), pick contacts, name it. Click the group's header to open **Group info**: rename it, add or remove members, make someone admin. Every window updates live, with system messages ("You added Meera").
-7. Profile menu → **Settings** → Appearance: switch System / Light / Dark.
+6. Hover a message → **React** (smiley) and pick an emoji: the chip appears under the bubble in both windows. Click the chip again to remove it.
+7. Click **New group** (next to New chat), pick contacts, name it. Click the group's header to open **Group info**: rename it, add or remove members, make someone admin. Every window updates live, with system messages ("You added Meera").
+8. Profile menu → **Settings** → Appearance: switch System / Light / Dark.
 
 ## Features
 
@@ -40,7 +41,7 @@ Any other valid number signs up a new account (name and avatar on first login). 
 |---|---|
 | Onboarding / login | Phone + mocked OTP, JWT session in `localStorage`, name and avatar (initials or presets) on first login; logout |
 | Contacts and conversation list | Add contacts by phone (with nickname), conversation list ordered by latest activity with previews, times and unread badges; search over contacts and chat names |
-| 1:1 messaging | Optimistic send with retry, history with infinite scroll (30 per page), **sent / delivered / read** ticks |
+| 1:1 messaging | Optimistic send with retry, history with infinite scroll (30 per page), **sent / delivered / read** ticks, reply-to and emoji reactions |
 | Typing and presence | "typing…" indicators; online dot and "last seen"; no flicker on refresh |
 | Persistence | Everything is stored in SQLite and reloaded on refresh; the socket reconnects and catches up by itself |
 | Groups | Create, rename, add / remove members, promote / demote admins, leave; system messages; live updates for every member |
@@ -55,7 +56,7 @@ Any other valid number signs up a new account (name and avatar on first login). 
 | Keyboard shortcuts | ✅ Done |
 | Responsive layout (one pane at a time on phones) | ✅ Done |
 | Attachments | ❌ Not built |
-| Reactions | ❌ Not built (table exists, no API/UI) |
+| Reactions (❤️ 👍 👎 😂 😮 😢, one per person per message, live) | ✅ Done |
 | Disappearing messages | ❌ Not built |
 | Message-body search | ❌ Not built (search covers names and phones only) |
 
@@ -109,7 +110,7 @@ npm run dev
 **Checks:**
 
 ```bash
-cd backend && pytest -q        # 173 tests
+cd backend && pytest -q        # 191 tests
 cd frontend && npm run lint && npm run build
 ```
 
@@ -237,7 +238,7 @@ erDiagram
 | `conversations` | One table for direct and group chats. `direct_key = "minUserId:maxUserId"` (unique) makes direct chats get-or-create, one per pair. |
 | `conversation_members` | Membership, role and the two receipt cursors. Leaving or being removed deletes the row. |
 | `messages` | `UNIQUE(sender_id, client_id)` for idempotent sends; `INDEX(conversation_id, id)` for history pages and "latest message per chat". System messages have `body = NULL` and a structured `meta`. |
-| `message_reactions` | Schema only; not used by the app. |
+| `message_reactions` | Emoji reactions. `PK(message_id, user_id)` = one reaction per person per message; `emoji` is one of ❤️ 👍 👎 😂 😮 😢 (checked by the API). |
 
 Timestamps are stored as UTC and returned as ISO 8601 with `Z`. Deleting a conversation cascades to its members, messages and reactions.
 
@@ -250,6 +251,7 @@ Timestamps are stored as UTC and returned as ISO 8601 with `Z`. Deleting a conve
   - The rule: one of my messages is *read* once the **minimum** `last_read` across the *other* members reaches it, and *delivered* likewise with `last_delivered`.
   - Removed or departed members leave the member list, so they never hold ticks back.
   - New members start with both cursors at the latest id: they see the history, but none of it is unread or "undelivered" for them.
+- **Reactions:** changing one sends every member a `reaction_update` with the message's *full* current list (a snapshot, so clients never have to merge deltas). Reactions never touch unread counts, receipt cursors, the chat-list preview or ordering. Someone who leaves a group keeps their reactions in history.
 - **System messages:** `type = "system"`, `sender_id` = the actor, `meta = {action, actor_id, actor_name, target_id?, target_name?, name?, role?}`.
   - Actions: `group_created`, `renamed`, `member_added`, `member_removed`, `member_left`, `role_changed`.
   - The client renders them per viewer ("You added Rahul." / "Priya added you.").
@@ -280,8 +282,10 @@ All routes except `/health` and `/auth/*` need `Authorization: Bearer <jwt>` (40
 | GET | `/conversations/{id}/messages?before_id=&limit=` | History, newest first (limit 1–100, default 30) |
 | POST | `/conversations/{id}/messages` | `{client_id, body, reply_to_id?}` → the saved message (idempotent per `client_id`) |
 | POST | `/conversations/{id}/read` | `{message_id}` → `{conversation_id, last_read, last_delivered}` |
+| PUT | `/messages/{id}/reaction` | `{emoji}` → the message's reactions `[{user_id, emoji}]`; replaces your earlier one; same emoji is a no-op |
+| DELETE | `/messages/{id}/reaction` | Remove your reaction (no-op if none) → the message's reactions |
 
-The group endpoints return the updated conversation as the caller sees it, and answer 400 for direct chats.
+The group endpoints return the updated conversation as the caller sees it, and answer 400 for direct chats. The reaction endpoints answer 404 for a missing message, 403 if you're not in its conversation, 400 for a system message and 422 for any other emoji. Every message object carries `reactions: [{user_id, emoji}]` (empty by default).
 
 ### WebSocket
 
@@ -292,12 +296,13 @@ Connect to `/ws?token=<jwt>`. An invalid or expired token, or a deleted user, ma
 | client → server | `ping` | `{}` (sent every 25 s) |
 | client → server | `typing` | `{conversation_id, is_typing}` (ignored if you're not a member) |
 | server → client | `pong` | `{}` |
-| server → client | `message_new` | Full message `{id, conversation_id, sender_id, type, body, meta, reply_to, client_id, created_at}` |
+| server → client | `message_new` | Full message `{id, conversation_id, sender_id, type, body, meta, reply_to, client_id, created_at, reactions}` |
 | server → client | `receipt_update` | `{conversation_id, user_id, delivered_up_to?, read_up_to?}` |
 | server → client | `typing` | `{conversation_id, user_id, is_typing}` |
 | server → client | `presence` | `{user_id, online, last_seen}` |
 | server → client | `conversation_updated` | Full conversation object, built per recipient (their nicknames, their unread count) |
 | server → client | `conversation_removed` | `{conversation_id}` (you were removed, you left, or the group was deleted) |
+| server → client | `reaction_update` | `{conversation_id, message_id, reactions: [{user_id, emoji}]}`: the full current list, to every member (your other tabs too) |
 | server → client | `error` / `echo` | Debug only: a malformed frame gets `error`; unknown types are echoed (used by the `/status` page) |
 
 ## Group admin rules
@@ -337,7 +342,7 @@ Connect to `/ws?token=<jwt>`. An invalid or expired token, or a deleted user, ma
 - **Mocked security:** fixed OTP, a simple HS256 JWT (7-day expiry) and no end-to-end encryption ("Encryption is simulated").
 - **Profile edits** (name/avatar) aren't pushed live to other users; they see them after their next reload.
 - **New group members** see the group's full history.
-- **Not built:** attachments, reactions, disappearing messages, message-body search, and calls/stories/linked devices (placeholders only).
+- **Not built:** attachments, disappearing messages, message-body search, and calls/stories/linked devices (placeholders only).
 
 ## Project structure
 

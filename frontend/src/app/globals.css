@@ -51,6 +51,10 @@
   --sg-toast: #2e2e2e;
   --sg-on-toast: #ffffff;
   --sg-highlight: rgb(44 107 237 / 0.35); /* ring flashed on a message reached via its quote */
+  --sg-reaction: #f0f0f0; /* reaction chip under a bubble */
+  --sg-reaction-border: #dedede;
+  --sg-reaction-mine: #dce6fb; /* chip / picker option holding my reaction */
+  --sg-reaction-mine-border: #2c6bed;
 
   /* Group sender names on incoming bubbles, indexed like the avatar colors (lib/avatars.ts).
      Each is >= 4.5:1 against --sg-bubble-in in its theme. */
@@ -112,6 +116,10 @@
   --sg-toast: #e9e9e9;
   --sg-on-toast: #1b1b1b;
   --sg-highlight: rgb(168 193 247 / 0.45);
+  --sg-reaction: #2e2e2e;
+  --sg-reaction-border: #4a4a4a;
+  --sg-reaction-mine: #1b2a4b;
+  --sg-reaction-mine-border: #4a82f0;
 
   --sg-sender-0: #9C9CFA;
   --sg-sender-1: #84A5E8;
@@ -167,6 +175,10 @@
   --color-toast: var(--sg-toast);
   --color-on-toast: var(--sg-on-toast);
   --color-highlight: var(--sg-highlight);
+  --color-reaction: var(--sg-reaction);
+  --color-reaction-border: var(--sg-reaction-border);
+  --color-reaction-mine: var(--sg-reaction-mine);
+  --color-reaction-mine-border: var(--sg-reaction-mine-border);
 
   --shadow-menu: var(--sg-shadow-menu);
   --shadow-dialog: var(--sg-shadow-dialog);
@@ -226,7 +238,9 @@
   --spacing-toast-y: 10px;
   --spacing-toast-close: 24px; /* the toast's close button */
   --spacing-toast-gap: 8px; /* space between the header line and the first toast */
-  --spacing-message-action: 28px; /* reply / copy buttons beside a bubble */
+  --spacing-message-action: 28px; /* reply / copy / react buttons beside a bubble */
+  --spacing-reaction-chip: 24px; /* height of a reaction chip */
+  --spacing-reaction-option: 36px; /* one emoji in the reaction picker */
 
   /* Avatar sizes */
   --spacing-avatar-list: 48px;

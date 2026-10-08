@@ -20,6 +20,7 @@ from app.services.conversations import get_conversation_out
 from app.services.groups import GroupChange
 from app.services.membership import is_member, member_ids
 from app.services.messages import SendResult
+from app.services.reactions import ReactionResult
 
 
 def envelope(type_: str, data: dict[str, Any]) -> dict[str, Any]:
@@ -103,3 +104,16 @@ def schedule_group_change(background: BackgroundTasks, db: Session, change: Grou
             conversation = get_conversation_out(db, viewer, change.conversation_id)
             snapshots.append((user_id, conversation.model_dump(mode="json")))
     background.add_task(_push_group_change, change, snapshots)
+
+
+def schedule_reaction_update(background: BackgroundTasks, result: ReactionResult) -> None:
+    """A reaction changed: every member (the actor's other tabs included) gets the message's full
+    current reaction list. No-ops push nothing."""
+    if not result.changed:
+        return
+    data = {
+        "conversation_id": result.conversation_id,
+        "message_id": result.message_id,
+        "reactions": [r.model_dump() for r in result.reactions],
+    }
+    background.add_task(push, result.member_ids, "reaction_update", data)

@@ -86,8 +86,9 @@ messages
   UNIQUE(sender_id, client_id)
   INDEX(conversation_id, id)
 
-message_reactions   # schema only for now; UI/endpoints are stretch
+message_reactions   # phase 8: one reaction per user per message (the PK enforces it)
   PK(message_id FK, user_id FK), emoji, created_at
+  emoji is one of ❤️ 👍 👎 😂 😮 😢 (ALLOWED_REACTIONS in services/reactions.py, REACTIONS in lib/reactions.ts)
 ```
 
 ### Derived rules
@@ -100,6 +101,7 @@ message_reactions   # schema only for now; UI/endpoints are stretch
 - **Empty direct chats:** a direct conversation with no messages is listed only for its creator (`created_by`); the other person sees it once the first message arrives.
 - **New group member:** sees full history (note in README). Their cursors start at the current latest message id so history is not unread.
 - **Leave / removal:** the member row is deleted.
+- **Reactions:** text messages only (system -> 400). PUT with a different emoji replaces mine, the same emoji is a no-op, DELETE removes (no-op if none). No side effects on unread counts, cursors, previews or ordering. A member who leaves keeps their reactions. Lists are ordered by when people (last) reacted.
 - **System messages:** `type='system'`, `body` NULL, `sender_id` = the actor, structured `meta` `{action, actor_id, actor_name, target_id?, target_name?, name?, role?}`. `actor_name`/`target_name` are display-name snapshots at the time of the change (so the text still reads right after someone leaves); `name` is the group name (`group_created`, `renamed`); `role` is set on `role_changed`. Actions: `group_created`, `member_added`, `member_removed`, `member_left`, `renamed`, `role_changed`. An automatic promotion is a `role_changed` with `actor_id == target_id` ("Rahul is now an admin."). The client renders per-viewer text ("You added Raj" / "Ana added you") as centered gray text, looking names up as: current member (viewer's nickname) -> snapshot -> "Someone".
 
 ## Groups and admin rules
@@ -139,6 +141,9 @@ POST /conversations/{id}/leave                           # 204
 GET  /conversations/{id}/messages?before_id=&limit=      # default 30, max 100, newest first
 POST /conversations/{id}/messages   {client_id, body, reply_to_id?}
 POST /conversations/{id}/read       {message_id} -> {conversation_id, last_read, last_delivered}
+
+PUT    /messages/{id}/reaction      {emoji} -> [{user_id, emoji}]   # 404 missing, 403 not a member, 400 system, 422 emoji
+DELETE /messages/{id}/reaction              -> [{user_id, emoji}]
 ```
 
 - Group mutations (`POST /conversations/group`, `PATCH /conversations/{id}`, the members endpoints) return the conversation object as the caller sees it.
@@ -147,7 +152,7 @@ POST /conversations/{id}/read       {message_id} -> {conversation_id, last_read,
 - After saving, the server pushes `message_new` to all members' sockets, including the sender's (multi-tab). The client dedupes by `client_id`/`id`.
 - `POST .../read` clamps `message_id` to the conversation's latest id and only moves forward.
 - Conversation object: `{id, type, name, avatar, created_at, unread_count, last_message, members:[{user_id, display_name, avatar, phone, nickname (the viewer's nickname for them or null), role, online, last_seen, last_delivered, last_read}]}`.
-- Message object: `{id, conversation_id, sender_id, type, body, meta, reply_to: {id, sender_id, type, body} | null, client_id, created_at}`.
+- Message object: `{id, conversation_id, sender_id, type, body, meta, reply_to: {id, sender_id, type, body} | null, client_id, created_at, reactions: [{user_id, emoji}]}` (reactions loaded for a whole page in one query).
 - Validation errors use FastAPI/Pydantic 422; permission errors 403; missing 404; duplicate contact 409. Business-rule errors carry a plain-English `detail` that the UI shows as-is.
 
 ## WebSocket contract
@@ -161,6 +166,7 @@ Envelope for every message: `{ "type": string, "data": object }`.
 - `presence`: `{user_id, online, last_seen}` (sent to users who share a conversation with that user)
 - `conversation_updated`: full conversation object (rename, members, roles, new group). Replace the entry in the store.
 - `conversation_removed`: `{conversation_id}` (sent to a removed member, to a member who left, including the last one out)
+- `reaction_update`: `{conversation_id, message_id, reactions: [{user_id, emoji}]}`, the message's FULL current list (a snapshot), to all members including the actor's other tabs; no-ops push nothing.
 - `pong`
 - `error` (`{detail}` for a malformed envelope; the socket stays open) and `echo` (unknown client types are echoed back; kept for the `/status` page)
 
@@ -220,7 +226,7 @@ Real-time is also verified manually: two browser windows as different users (sen
 
 ## Build phases (vertical slices; each ends deployed and demoable)
 
-Status: phases 0-6 **done**; phase 7 **in progress**.
+Status: phases 0-7 **done** (tagged `submission-ready`); phase 8 (reactions) **done**, pending your review.
 
 0. **[done]** Skeleton: monorepo, FastAPI `/health` + CORS + WebSocket echo, Next.js shell, deploy both (Render + Vercel), verify `wss://` works live.
 1. **[done]** Auth and onboarding: OTP flow, JWT, display name and avatar, session persistence, logout.
@@ -228,8 +234,9 @@ Status: phases 0-6 **done**; phase 7 **in progress**.
 3. **[done]** Direct messaging: REST send, `message_new` push, optimistic send, pagination, delivered/sent states.
 4. **[done]** Receipts, typing, presence, unread badges, last-seen.
 5. **[done]** Groups: create, members view, admin controls, system messages, `conversation_updated`/`removed`.
-6. **[done]** Polish and bonuses: dark mode, reply-to, keyboard shortcuts, toasts, settings placeholders. Stretch: responsive layout done (built in phase 3); reactions and "read by" not built.
-7. **[in progress]** README and final live checklist.
+6. **[done]** Polish and bonuses: dark mode, reply-to, keyboard shortcuts, toasts, settings placeholders. Stretch: responsive layout done (built in phase 3); reactions done in phase 8; "read by" not built.
+7. **[done]** README and final live checklist.
+8. **[done]** Reactions (bonus): PUT/DELETE `/messages/{id}/reaction`, `reaction_update` snapshot event, picker + chips in the UI.
 
 Cut line if time runs short: drop from the end (stretch, then bonuses, then group polish). Never leave the core (phases 0-4) half-working.
 
