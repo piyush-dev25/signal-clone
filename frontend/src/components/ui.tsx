@@ -1,4 +1,4 @@
-import type { ButtonHTMLAttributes, InputHTMLAttributes, ReactNode, SelectHTMLAttributes } from "react";
+import type { ButtonHTMLAttributes, ComponentProps, ReactNode, SelectHTMLAttributes } from "react";
 
 type ButtonVariant = "primary" | "secondary" | "ghost" | "danger";
 
@@ -42,7 +42,8 @@ export function IconButton({
 const FIELD =
   "h-button rounded-control border border-border bg-surface px-3 text-body text-fg placeholder:text-fg-tertiary focus:border-accent focus:outline-none";
 
-export function TextField({ className = "", ...props }: InputHTMLAttributes<HTMLInputElement>) {
+/** `ref` is a regular prop in React 19 (e.g. to focus the field). */
+export function TextField({ className = "", ...props }: ComponentProps<"input">) {
   return <input className={`${FIELD} min-w-0 ${className}`} {...props} />;
 }
 

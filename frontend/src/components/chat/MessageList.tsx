@@ -8,6 +8,8 @@ import type { Conversation } from "@/lib/api";
 import { memberName, systemMessageText } from "@/lib/conversations";
 import { type ChatMessage, messageStatus } from "@/lib/receipts";
 import { dayKey, dayLabel } from "@/lib/time";
+import { takeOnce } from "@/lib/hints";
+import { useCoarsePointer } from "@/lib/useCoarsePointer";
 import { useAppStore } from "@/store/app";
 import { toast } from "@/store/toasts";
 
@@ -103,6 +105,9 @@ export function MessageList({ conversation, meId }: { conversation: Conversation
   const retryMessage = useAppStore((s) => s.retryMessage);
   const setReplyingTo = useAppStore((s) => s.setReplyingTo);
   const toggleReaction = useAppStore((s) => s.toggleReaction);
+  const openActionsId = useAppStore((s) => s.openActionsId);
+  const setOpenActions = useAppStore((s) => s.setOpenActions);
+  const coarse = useCoarsePointer();
   const [highlightId, setHighlightId] = useState<number | null>(null);
   const highlightTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const typingMap = useAppStore((s) => s.typing[conversation.id]);
@@ -163,6 +168,25 @@ export function MessageList({ conversation, meId }: { conversation: Conversation
   }
 
   useEffect(() => () => clearTimeout(highlightTimer.current), []);
+
+  // Touch: a revealed action row closes when you tap anywhere outside that message (tapping
+  // another bubble then opens its row instead).
+  useEffect(() => {
+    if (openActionsId === null) return;
+    function onPointerDown(event: PointerEvent) {
+      const target = event.target as Element | null;
+      if (target?.closest(`[data-message-id="${openActionsId}"]`)) return;
+      setOpenActions(null);
+    }
+    document.addEventListener("pointerdown", onPointerDown, true);
+    return () => document.removeEventListener("pointerdown", onPointerDown, true);
+  }, [openActionsId, setOpenActions]);
+
+  // Touch: explain the gesture once, the first time a chat with messages is opened.
+  const hasMessages = loaded && messages.length > 0;
+  useEffect(() => {
+    if (coarse && hasMessages && takeOnce("signal.hint.tapMessage")) toast("Tap a message to reply or react");
+  }, [coarse, hasMessages]);
 
   /** Clicking a quote: scroll to the original and flash it, if it's loaded. */
   function jumpTo(messageId: number) {
@@ -241,12 +265,21 @@ export function MessageList({ conversation, meId }: { conversation: Conversation
             status={mine ? messageStatus(message, conversation, meId) : null}
             highlighted={highlightId !== null && message.id === highlightId}
             onRetry={() => message.client_id && retryMessage(conversation.id, message.client_id)}
-            onReply={() => setReplyingTo({ conversationId: conversation.id, message })}
-            onCopy={() => copy(message.body ?? "")}
+            onReply={() => {
+              setOpenActions(null);
+              setReplyingTo({ conversationId: conversation.id, message });
+            }}
+            onCopy={() => {
+              setOpenActions(null);
+              copy(message.body ?? "");
+            }}
             onQuoteClick={jumpTo}
             meId={meId}
             nameOf={nameOf}
             onReact={(emoji) => toggleReaction(conversation.id, message.id, emoji)}
+            coarse={coarse}
+            actionsOpen={openActionsId !== null && message.id === openActionsId}
+            onToggleActions={() => setOpenActions(openActionsId === message.id ? null : message.id)}
           />
         );
       })}

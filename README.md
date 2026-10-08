@@ -22,12 +22,12 @@ OTP and encryption are **mocked**: there is no SMS, and every number accepts the
 | Meera Nair | `+919900112233` | Admin of "Book Club" |
 | Arjun Mehta | `+919731234567` | |
 
-Any other valid number signs up a new account (name and avatar on first login). The login screen lists the first three accounts; click one to fill it in.
+Any other valid number signs up a new account (name and avatar on first login). The login screen has a **Try a demo account** section with the first three accounts: tap one to fill in the number (it doesn't submit), and use **Fill code** on the next step.
 
 ## Try it in 2 minutes
 
 1. Open the app in two windows (a normal one and a private one).
-2. Log in as **Priya** (`+919876543210`) in one and **Rahul** (`+919812345678`) in the other, code `123456`.
+2. Log in as **Priya** (`+919876543210`) in one and **Rahul** (`+919812345678`) in the other, code `123456`. The **Try a demo account** buttons on the login screen fill the numbers for you.
 3. Open the Priya ↔ Rahul chat in both. Send a message: it appears instantly on the other side, and the ticks go **sent → delivered → read** as soon as the other window has the chat open.
 4. Start typing: the other window shows "typing…" in the header, the chat and the sidebar.
 5. Hover a message → **Reply**, then send; the quote appears in both windows. Click the quote to jump to the original.
@@ -41,7 +41,7 @@ Any other valid number signs up a new account (name and avatar on first login). 
 |---|---|
 | Onboarding / login | Phone + mocked OTP, JWT session in `localStorage`, name and avatar (initials or presets) on first login; logout |
 | Contacts and conversation list | Add contacts by phone (with nickname), conversation list ordered by latest activity with previews, times and unread badges; search over contacts and chat names |
-| 1:1 messaging | Optimistic send with retry, history with infinite scroll (30 per page), **sent / delivered / read** ticks, reply-to and emoji reactions |
+| 1:1 messaging | Optimistic send with retry, history with infinite scroll (30 per page), **sent / delivered / read** ticks, reply-to and emoji reactions. Message actions appear on hover with a mouse; on touch screens you tap a message to reveal them beneath it |
 | Typing and presence | "typing…" indicators; online dot and "last seen"; no flicker on refresh |
 | Persistence | Everything is stored in SQLite and reloaded on refresh; the socket reconnects and catches up by itself |
 | Groups | Create, rename, add / remove members, promote / demote admins, leave; system messages; live updates for every member |
@@ -54,7 +54,7 @@ Any other valid number signs up a new account (name and avatar on first login). 
 | Dark mode (System / Light / Dark, no flash on load) | ✅ Done |
 | Reply to a message (quote, jump to original) | ✅ Done |
 | Keyboard shortcuts | ✅ Done |
-| Responsive layout (one pane at a time on phones) | ✅ Done |
+| Responsive layout (one pane at a time on phones; tap a message to reveal React / Reply / Copy on touch screens) | ✅ Done |
 | Attachments | ❌ Not built |
 | Reactions (❤️ 👍 👎 😂 😮 😢, one per person per message, live) | ✅ Done |
 | Disappearing messages | ❌ Not built |
@@ -326,7 +326,7 @@ Connect to `/ws?token=<jwt>`. An invalid or expired token, or a deleted user, ma
 | Search chats and contacts | Ctrl+K or `/` | ⌘K or `/` |
 | Previous / next chat | Alt+↑ / Alt+↓ | ⌥↑ / ⌥↓ |
 | Settings | Alt+, | ⌥, |
-| Close dialog or menu → cancel reply → clear search | Esc | Esc |
+| Close dialog or menu → hide message actions (touch) → cancel reply → clear search | Esc | Esc |
 
 - **Where they work:**
   - Shortcuts don't fire while a dialog or menu is open.

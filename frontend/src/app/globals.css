@@ -239,6 +239,7 @@
   --spacing-toast-close: 24px; /* the toast's close button */
   --spacing-toast-gap: 8px; /* space between the header line and the first toast */
   --spacing-message-action: 28px; /* reply / copy / react buttons beside a bubble */
+  --spacing-touch-action: 40px; /* the same buttons in the tap-to-reveal row on touch screens */
   --spacing-reaction-chip: 24px; /* height of a reaction chip */
   --spacing-reaction-option: 36px; /* one emoji in the reaction picker */
 

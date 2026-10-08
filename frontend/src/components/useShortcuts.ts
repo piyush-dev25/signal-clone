@@ -50,10 +50,14 @@ export function useShortcuts() {
       const store = useAppStore.getState();
 
       if (event.key === "Escape") {
-        // Exactly one action per keypress: Radix closes an open dialog/menu itself, so do
-        // nothing then; otherwise cancel the reply, otherwise clear the search.
+        // Exactly one action per keypress: Radix (and the reaction picker) close an open
+        // dialog/menu themselves, so do nothing then; otherwise hide a revealed message action
+        // row (touch), else cancel the reply, else clear the search.
         if (overlayOpen()) return;
-        if (store.replyingTo) {
+        if (store.openActionsId !== null) {
+          store.setOpenActions(null);
+          event.preventDefault();
+        } else if (store.replyingTo) {
           store.setReplyingTo(null);
           event.preventDefault();
         } else if (store.searchQuery) {

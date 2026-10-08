@@ -79,8 +79,8 @@ export const SHORTCUTS: Shortcut[] = [
   },
 ];
 
-/** Shown in Settings; Esc is handled separately (dialogs/menus, then reply, then search). */
-export const ESCAPE_HELP = "Close a dialog or menu, else cancel the reply, else clear the search";
+/** Shown in Settings; Esc is handled separately (dialogs/menus, then message actions, then reply, then search). */
+export const ESCAPE_HELP = "Close a dialog or menu, else hide message actions, else cancel the reply, else clear the search";
 
 export function isMac(): boolean {
   return typeof navigator !== "undefined" && /Mac|iPhone|iPad/.test(navigator.userAgent);

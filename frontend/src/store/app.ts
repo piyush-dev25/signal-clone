@@ -75,6 +75,9 @@ type AppState = {
   closeDialog: () => void;
   searchQuery: string;
   setSearchQuery: (query: string) => void;
+  /** Touch devices: the one message whose action row (React / Reply / Copy) is revealed. */
+  openActionsId: number | null;
+  setOpenActions: (messageId: number | null) => void;
   /** Group ids I'm leaving myself (so their conversation_removed isn't announced as a removal). */
   leaving: Set<number>;
   /** My display name/avatar changed: update my own entry in every conversation. */
@@ -170,6 +173,7 @@ export const useAppStore = create<AppState>()((set, get) => {
     replyingTo: null,
     dialog: null,
     searchQuery: "",
+    openActionsId: null,
     leaving: new Set(),
 
     setSession: (meId, realtime) => set({ meId, realtime }),
@@ -178,6 +182,7 @@ export const useAppStore = create<AppState>()((set, get) => {
     openDialog: (dialog) => set({ dialog }),
     closeDialog: () => set({ dialog: null }),
     setSearchQuery: (query) => set({ searchQuery: query }),
+    setOpenActions: (messageId) => set({ openActionsId: messageId }),
 
     applyMyProfile: (me) =>
       set((state) => ({
@@ -262,6 +267,7 @@ export const useAppStore = create<AppState>()((set, get) => {
     setActiveConversation: (id) =>
       set((state) => ({
         activeConversationId: id,
+        openActionsId: null,
         // A reply belongs to one chat: switching chats drops it.
         replyingTo: state.replyingTo && state.replyingTo.conversationId !== id ? null : state.replyingTo,
       })),
@@ -309,6 +315,7 @@ export const useAppStore = create<AppState>()((set, get) => {
     },
 
     sendMessage: (conversationId, body, meId, replyTo) => {
+      set({ openActionsId: null }); // sending hides a revealed action row
       const message: ChatMessage = {
         id: 0,
         conversation_id: conversationId,

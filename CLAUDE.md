@@ -196,8 +196,10 @@ Envelope for every message: `{ "type": string, "data": object }`.
 - Routes: `/login`, `/` (empty pane), `/chat/[id]`. Below 768px one pane at a time (list on `/`, chat on `/chat/[id]` with a back arrow).
 - Settings is a modal (full-screen on mobile) with Profile (name, preset avatar, phone), Privacy and Notifications (placeholders), Appearance (System / Light / Dark, stored in `localStorage` key `signal.theme`, applied by an inline head script before paint), Keyboard shortcuts and About. "Coming soon" toasts for voice/video calls (DM header), Stories and Linked devices (profile menu).
 - Toasts: own small store (`store/toasts.ts`), 4s auto-dismiss, max 3, top-center below the header.
-- Keyboard shortcuts (`lib/shortcuts.ts`): Alt+N new chat, Alt+G new group, Alt+, settings, Ctrl/Cmd+K or `/` search, Alt+Up/Down previous/next chat, Esc (dialog/menu, else reply, else search). Alt shortcuts ignore AltGr (Ctrl+Alt).
-- Reply-to: Reply/Copy actions on text messages (hover; always visible on touch), reply bar in the composer, click a quote to jump to the original.
+- Keyboard shortcuts (`lib/shortcuts.ts`): Alt+N new chat, Alt+G new group, Alt+, settings, Ctrl/Cmd+K or `/` search, Alt+Up/Down previous/next chat, Esc (dialog/menu, else touch action row, else reply, else search). Alt shortcuts ignore AltGr (Ctrl+Alt).
+- Reply-to: Reply/Copy actions on text messages, reply bar in the composer, click a quote to jump to the original.
+- Message actions (React / Reply / Copy): with a mouse they appear beside the bubble on hover/focus (unchanged). On a coarse pointer (`lib/useCoarsePointer.ts`, `matchMedia("(pointer: coarse)")`) tapping a saved text bubble reveals a row BENEATH it (below reaction chips); one open at a time (`openActionsId` in the store); closes on tapping the bubble again, tapping elsewhere, chat switch, send, Esc, Reply, Copy or picking a reaction. When closed the row stays in the DOM visually hidden (`sr-only`, `focus-within:not-sr-only`) for keyboard / screen-reader users. One-time toast "Tap a message to reply or react" (localStorage `signal.hint.tapMessage`, `lib/hints.ts`).
+- Login page: original two-bubble brand mark (not Signal's logo), "Signal Clone" + tagline, "Try a demo account" buttons (Priya / Rahul / Ananya from `DEMO_ACCOUNTS`, must match `seed.py`; tap fills the number, no auto-submit), "Fill code" on the OTP hint, and a footer note that sign-in and encryption are simulated.
 - Zustand store holds conversations, messages by conversation id, presence, typing. REST loads the store; WebSocket events patch it.
 - Optimistic send: generate `client_id` (uuid), show as `sending`, replace with the server message on response; on failure show a retry state.
 - History: cursor pagination, load 30, load older on scroll to top (a "Load older messages" button is the acceptable fallback). Preserve scroll position when prepending.
@@ -226,7 +228,7 @@ Real-time is also verified manually: two browser windows as different users (sen
 
 ## Build phases (vertical slices; each ends deployed and demoable)
 
-Status: phases 0-7 **done** (tagged `submission-ready`); phase 8 (reactions) **done**, pending your review.
+Status: phases 0-8 **done** (phase 7 tagged `submission-ready`); phase 9 (touch actions + login polish) **done**, pending your review.
 
 0. **[done]** Skeleton: monorepo, FastAPI `/health` + CORS + WebSocket echo, Next.js shell, deploy both (Render + Vercel), verify `wss://` works live.
 1. **[done]** Auth and onboarding: OTP flow, JWT, display name and avatar, session persistence, logout.
@@ -237,6 +239,7 @@ Status: phases 0-7 **done** (tagged `submission-ready`); phase 8 (reactions) **d
 6. **[done]** Polish and bonuses: dark mode, reply-to, keyboard shortcuts, toasts, settings placeholders. Stretch: responsive layout done (built in phase 3); reactions done in phase 8; "read by" not built.
 7. **[done]** README and final live checklist.
 8. **[done]** Reactions (bonus): PUT/DELETE `/messages/{id}/reaction`, `reaction_update` snapshot event, picker + chips in the UI.
+9. **[done]** Mobile message actions (tap-to-reveal row on touch screens) and login page polish (brand header, demo accounts, fill code). Frontend only.
 
 Cut line if time runs short: drop from the end (stretch, then bonuses, then group polish). Never leave the core (phases 0-4) half-working.
 
