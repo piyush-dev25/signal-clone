@@ -39,6 +39,7 @@ export default function AppLayout({ children }: LayoutProps<"/">) {
         // Every (re)connect also resyncs: it covers anything sent while we were disconnected,
         // including the gap between the REST load above and the first connect.
         socketRef.current = connectRealtime(token, { onOpen: store.resync, onEvent: store.handleEvent });
+        store.setSession(me.id, socketRef.current);
         setState({ status: "ready", me });
       })
       .catch((err: unknown) => {

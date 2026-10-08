@@ -11,6 +11,8 @@ class Settings(BaseSettings):
     # Comma-separated list of allowed browser origins.
     cors_origins_raw: str = Field(default="http://localhost:3000", alias="CORS_ORIGINS")
     database_url: str = "sqlite:///./signal.db"
+    # How long a user stays "online" after their last socket closes (absorbs refreshes/reconnects).
+    presence_grace_seconds: float = 5.0
 
     @cached_property
     def cors_origins(self) -> list[str]:

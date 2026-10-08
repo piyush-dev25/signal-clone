@@ -4,7 +4,7 @@ from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 from starlette.concurrency import run_in_threadpool
 
 from app.db import SessionLocal
-from app.realtime import events
+from app.realtime import events, presence
 from app.realtime.manager import manager
 from app.services.auth import user_from_token
 
@@ -27,8 +27,9 @@ async def websocket_endpoint(websocket: WebSocket, token: str | None = None) -> 
     if user_id is None:
         await websocket.close(code=WS_UNAUTHORIZED)
         return
-    manager.connect(user_id, websocket)
+    first_socket = manager.connect(user_id, websocket)
     try:
+        await presence.on_connect(user_id, first_socket)
         await events.user_connected(user_id)
         while True:
             raw = await websocket.receive_text()
@@ -40,10 +41,13 @@ async def websocket_endpoint(websocket: WebSocket, token: str | None = None) -> 
                 await websocket.send_json({"type": "error", "data": {"detail": "invalid envelope"}})
             elif envelope["type"] == "ping":
                 await websocket.send_json({"type": "pong", "data": {}})
+            elif envelope["type"] == "typing":
+                await events.relay_typing(user_id, envelope.get("data"))
             else:
-                # Kept for the /status connectivity page; typing arrives in Phase 4.
+                # Kept for the /status connectivity page.
                 await websocket.send_json({"type": "echo", "data": envelope})
     except WebSocketDisconnect:
         pass
     finally:
         manager.disconnect(user_id, websocket)
+        presence.on_disconnect(user_id)

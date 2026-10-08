@@ -11,6 +11,7 @@ from fastapi.testclient import TestClient  # noqa: E402
 from app.db import Base, SessionLocal, engine  # noqa: E402
 from app.main import app  # noqa: E402
 from app.models import Conversation, ConversationMember, Message  # noqa: E402
+from app.realtime import presence  # noqa: E402
 from app.realtime.manager import manager  # noqa: E402
 from app.services.auth import FIXED_OTP  # noqa: E402
 
@@ -112,4 +113,5 @@ def live_client(monkeypatch):
     manager.clear()
     with TestClient(app) as client:
         yield client
+        client.portal.call(presence.cancel_all)  # on the app's loop, before it shuts down
     manager.clear()

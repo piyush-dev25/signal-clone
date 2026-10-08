@@ -20,8 +20,11 @@ class ConnectionManager:
     def __init__(self) -> None:
         self._sockets: dict[int, set[WebSocket]] = defaultdict(set)
 
-    def connect(self, user_id: int, websocket: WebSocket) -> None:
+    def connect(self, user_id: int, websocket: WebSocket) -> bool:
+        """Register a socket. Returns True if it is the user's first open socket."""
+        first = not self._sockets.get(user_id)
         self._sockets[user_id].add(websocket)
+        return first
 
     def disconnect(self, user_id: int, websocket: WebSocket) -> None:
         sockets = self._sockets.get(user_id)

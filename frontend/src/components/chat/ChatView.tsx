@@ -8,16 +8,21 @@ import { MessageList } from "@/components/chat/MessageList";
 import { ArrowLeftIcon } from "@/components/icons";
 import { useSession } from "@/components/session";
 import type { Conversation } from "@/lib/api";
-import { conversationTitle, otherMember } from "@/lib/conversations";
+import { conversationTitle, otherMember, typingText } from "@/lib/conversations";
 import { lastSeenText } from "@/lib/time";
+import { useDocumentVisible } from "@/lib/useDocumentVisible";
 import { useAppStore } from "@/store/app";
 
-function subtitle(conversation: Conversation, meId: number): string | null {
+const NOBODY_TYPING: Record<number, true> = {};
+
+function subtitle(conversation: Conversation, meId: number, typingIds: number[]): string | null {
+  if (typingIds.length > 0) return typingText(conversation, typingIds);
   if (conversation.type === "group") {
     const n = conversation.members.length;
     return `${n} member${n === 1 ? "" : "s"}`;
   }
-  return lastSeenText(otherMember(conversation, meId)?.last_seen ?? null);
+  const other = otherMember(conversation, meId);
+  return other?.online ? "Online" : lastSeenText(other?.last_seen ?? null);
 }
 
 export function ChatView({ id }: { id: string }) {
@@ -27,12 +32,27 @@ export function ChatView({ id }: { id: string }) {
   const conversation = useAppStore((s) => s.conversations.find((c) => c.id === conversationId));
   const setActiveConversation = useAppStore((s) => s.setActiveConversation);
   const sendMessage = useAppStore((s) => s.sendMessage);
+  const markRead = useAppStore((s) => s.markRead);
+  const typing = useAppStore((s) => (conversationId !== null ? s.typing[conversationId] : undefined)) ?? NOBODY_TYPING;
+  const newestLoadedId = useAppStore((s) =>
+    conversationId !== null ? (s.messagesByConversation[conversationId]?.messages.findLast((m) => m.id !== 0)?.id ?? 0) : 0,
+  );
+  const visible = useDocumentVisible();
+
+  const latestId = Math.max(conversation?.last_message?.id ?? 0, newestLoadedId);
+  const myLastRead = conversation?.members.find((m) => m.user_id === me.id)?.last_read ?? 0;
+  const unread = conversation?.unread_count ?? 0;
 
   // Highlights this chat in the sidebar while it is open (and tells resync which chat to refresh).
   useEffect(() => {
     setActiveConversation(conversationId);
     return () => setActiveConversation(null);
   }, [conversationId, setActiveConversation]);
+
+  // Read while open and visible: on open, on each new message, and when the tab becomes visible.
+  useEffect(() => {
+    if (conversationId !== null && visible && (latestId > myLastRead || unread > 0)) markRead(conversationId);
+  }, [conversationId, visible, latestId, myLastRead, unread, markRead]);
 
   if (!conversation) {
     if (conversationId !== null && status !== "ready" && status !== "error") return null; // still loading
@@ -47,10 +67,10 @@ export function ChatView({ id }: { id: string }) {
     );
   }
 
-  const sub = subtitle(conversation, me.id);
+  const sub = subtitle(conversation, me.id, Object.keys(typing).map(Number));
   return (
     <div className="flex min-h-0 flex-1 flex-col">
-      <header className="flex h-header shrink-0 items-center gap-3 border-b border-border px-pane-x">
+      <header className="flex h-header shrink-0 items-center gap-3 border-b border-border px-pane-x [--dot-ring:var(--color-surface)]">
         <Link
           href="/"
           aria-label="Back to chats"
@@ -65,7 +85,11 @@ export function ChatView({ id }: { id: string }) {
         </div>
       </header>
       <MessageList key={conversation.id} conversation={conversation} meId={me.id} />
-      <Composer key={`composer-${conversation.id}`} onSend={(body) => sendMessage(conversation.id, body, me.id)} />
+      <Composer
+        key={`composer-${conversation.id}`}
+        conversationId={conversation.id}
+        onSend={(body) => sendMessage(conversation.id, body, me.id)}
+      />
     </div>
   );
 }

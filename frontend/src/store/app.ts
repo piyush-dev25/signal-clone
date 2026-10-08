@@ -5,17 +5,20 @@ import {
   type Conversation,
   MESSAGE_PAGE_SIZE,
   type Message,
+  type PresenceEvent,
   type ReceiptUpdate,
   type ServerEvent,
   listContacts,
   listConversations,
   listMessages,
+  markRead as postRead,
   postMessage,
 } from "@/lib/api";
 import { sortContacts, sortConversations } from "@/lib/conversations";
 import { newClientId } from "@/lib/ids";
 import { isNewer, mergeMessages } from "@/lib/messages";
 import type { ChatMessage } from "@/lib/receipts";
+import type { RealtimeConnection } from "@/lib/ws";
 
 type Status = "idle" | "loading" | "ready" | "error";
 
@@ -30,6 +33,15 @@ export type ChatState = {
 
 const EMPTY_CHAT: ChatState = { messages: [], loaded: false, hasMore: false, loadingOlder: false, error: null };
 
+const READ_DEBOUNCE_MS = 300;
+const TYPING_EXPIRY_MS = 5_000; // the typist re-sends every ~3s while still typing
+
+/** Newest saved (server-assigned) message id we know of in a conversation. */
+function latestSavedId(conversation: Conversation, chat: ChatState | undefined): number {
+  const fromChat = chat?.messages.findLast((m) => m.id !== 0)?.id ?? 0;
+  return Math.max(conversation.last_message?.id ?? 0, fromChat);
+}
+
 type AppState = {
   status: Status;
   error: string | null;
@@ -37,6 +49,12 @@ type AppState = {
   contacts: Contact[];
   activeConversationId: number | null;
   messagesByConversation: Record<number, ChatState>;
+  /** conversation id -> ids of users currently typing there (never includes me). */
+  typing: Record<number, Record<number, true>>;
+  meId: number | null;
+  realtime: RealtimeConnection | null;
+
+  setSession: (meId: number, realtime: RealtimeConnection) => void;
 
   /** First load after login (shows loading/error states in the sidebar). */
   load: () => Promise<void>;
@@ -53,6 +71,12 @@ type AppState = {
   retryMessage: (conversationId: number, clientId: string) => void;
   receiveMessage: (message: ChatMessage) => void;
   applyReceipt: (update: ReceiptUpdate) => void;
+  /** Mark the open chat read up to its latest message (optimistic, then a debounced POST /read). */
+  markRead: (conversationId: number) => void;
+  setTyping: (conversationId: number, userId: number, isTyping: boolean) => void;
+  clearTyping: () => void;
+  sendTyping: (conversationId: number, isTyping: boolean) => void;
+  applyPresence: (presence: PresenceEvent) => void;
   handleEvent: (event: ServerEvent) => void;
 };
 
@@ -61,6 +85,8 @@ function errorText(err: unknown, fallback: string): string {
 }
 
 let conversationsInFlight: Promise<void> | null = null;
+const readTimers = new Map<number, ReturnType<typeof setTimeout>>();
+const typingTimers = new Map<string, ReturnType<typeof setTimeout>>();
 
 export const useAppStore = create<AppState>()((set, get) => {
   function patchChat(conversationId: number, patch: (chat: ChatState) => Partial<ChatState>) {
@@ -98,6 +124,11 @@ export const useAppStore = create<AppState>()((set, get) => {
     contacts: [],
     activeConversationId: null,
     messagesByConversation: {},
+    typing: {},
+    meId: null,
+    realtime: null,
+
+    setSession: (meId, realtime) => set({ meId, realtime }),
 
     load: async () => {
       set({ status: "loading", error: null });
@@ -123,6 +154,7 @@ export const useAppStore = create<AppState>()((set, get) => {
 
     resync: async () => {
       const active = get().activeConversationId;
+      get().clearTyping(); // typing events sent while we were away are stale
       // Other chats may have missed messages while we were away: drop their cache (keeping
       // unsent messages) so they reload when opened.
       set((state) => ({
@@ -217,7 +249,11 @@ export const useAppStore = create<AppState>()((set, get) => {
     },
 
     receiveMessage: (message) => {
+      const { meId, activeConversationId } = get();
       const known = get().conversations.some((c) => c.id === message.conversation_id);
+      // Unread counts someone else's new text message unless that chat is open in a visible tab.
+      const fromOther = message.id !== 0 && message.type === "text" && message.sender_id !== meId;
+      const unseen = activeConversationId !== message.conversation_id || document.visibilityState !== "visible";
       set((state) => {
         const chat = state.messagesByConversation[message.conversation_id];
         return {
@@ -228,34 +264,125 @@ export const useAppStore = create<AppState>()((set, get) => {
               }
             : state.messagesByConversation,
           conversations: sortConversations(
-            state.conversations.map((c) =>
-              c.id === message.conversation_id && isNewer(message, c.last_message) ? { ...c, last_message: message } : c,
-            ),
+            state.conversations.map((c) => {
+              if (c.id !== message.conversation_id) return c;
+              const isNew = message.id > (c.last_message?.id ?? 0); // not a copy already counted
+              return {
+                ...c,
+                last_message: isNewer(message, c.last_message) ? message : c.last_message,
+                unread_count: fromOther && unseen && isNew ? c.unread_count + 1 : c.unread_count,
+              };
+            }),
           ),
         };
       });
-      // A chat we haven't seen yet (e.g. someone just messaged us for the first time).
+      // Their message ends their typing indicator.
+      if (fromOther) get().setTyping(message.conversation_id, message.sender_id, false);
+      // A chat we have not seen yet (e.g. someone just messaged us for the first time).
       if (!known) void get().refreshConversations();
     },
 
     applyReceipt: (update) =>
       set((state) => ({
+        conversations: state.conversations.map((c) => {
+          if (c.id !== update.conversation_id) return c;
+          // I read up to the latest message (e.g. in another tab): nothing unread here any more.
+          const readAll =
+            update.user_id === state.meId &&
+            update.read_up_to !== undefined &&
+            update.read_up_to >= (c.last_message?.id ?? 0);
+          return {
+            ...c,
+            unread_count: readAll ? 0 : c.unread_count,
+            members: c.members.map((m) =>
+              m.user_id !== update.user_id
+                ? m
+                : {
+                    ...m,
+                    last_delivered: Math.max(m.last_delivered, update.delivered_up_to ?? 0, update.read_up_to ?? 0),
+                    last_read: Math.max(m.last_read, update.read_up_to ?? 0),
+                  },
+            ),
+          };
+        }),
+      })),
+
+    markRead: (conversationId) => {
+      const { meId, conversations, messagesByConversation } = get();
+      const conversation = conversations.find((c) => c.id === conversationId);
+      if (meId === null || !conversation) return;
+      const latest = latestSavedId(conversation, messagesByConversation[conversationId]);
+      const mine = conversation.members.find((m) => m.user_id === meId);
+      if (!mine || latest <= mine.last_read) {
+        if (conversation.unread_count) {
+          set((state) => ({
+            conversations: state.conversations.map((c) => (c.id === conversationId ? { ...c, unread_count: 0 } : c)),
+          }));
+        }
+        return;
+      }
+      // Optimistic: my cursor and the badge update now; the server confirms after the debounce.
+      get().applyReceipt({ conversation_id: conversationId, user_id: meId, read_up_to: latest });
+      set((state) => ({
+        conversations: state.conversations.map((c) => (c.id === conversationId ? { ...c, unread_count: 0 } : c)),
+      }));
+
+      clearTimeout(readTimers.get(conversationId));
+      readTimers.set(
+        conversationId,
+        setTimeout(() => {
+          readTimers.delete(conversationId);
+          const current = get().conversations.find((c) => c.id === conversationId);
+          if (!current) return;
+          const upTo = latestSavedId(current, get().messagesByConversation[conversationId]);
+          postRead(conversationId, upTo)
+            .then((cursors) =>
+              get().applyReceipt({
+                conversation_id: conversationId,
+                user_id: meId,
+                read_up_to: cursors.last_read,
+                delivered_up_to: cursors.last_delivered,
+              }),
+            )
+            .catch(() => {}); // the next resync brings back the server's view (and the read retries)
+        }, READ_DEBOUNCE_MS),
+      );
+    },
+
+    setTyping: (conversationId, userId, isTyping) => {
+      const key = `${conversationId}:${userId}`;
+      clearTimeout(typingTimers.get(key));
+      typingTimers.delete(key);
+      if (isTyping) {
+        // Auto-expire in case the "stopped typing" event never arrives.
+        typingTimers.set(key, setTimeout(() => get().setTyping(conversationId, userId, false), TYPING_EXPIRY_MS));
+      }
+      const current = get().typing[conversationId] ?? {};
+      if (Boolean(current[userId]) === isTyping) return;
+      const next = { ...current };
+      if (isTyping) next[userId] = true;
+      else delete next[userId];
+      set((state) => ({ typing: { ...state.typing, [conversationId]: next } }));
+    },
+
+    clearTyping: () => {
+      typingTimers.forEach((timer) => clearTimeout(timer));
+      typingTimers.clear();
+      set({ typing: {} });
+    },
+
+    sendTyping: (conversationId, isTyping) => {
+      get().realtime?.send("typing", { conversation_id: conversationId, is_typing: isTyping });
+    },
+
+    applyPresence: ({ user_id, online, last_seen }) =>
+      set((state) => ({
         conversations: state.conversations.map((c) =>
-          c.id !== update.conversation_id
-            ? c
-            : {
-                ...c,
-                members: c.members.map((m) =>
-                  m.user_id !== update.user_id
-                    ? m
-                    : {
-                        ...m,
-                        last_delivered: Math.max(m.last_delivered, update.delivered_up_to ?? 0, update.read_up_to ?? 0),
-                        last_read: Math.max(m.last_read, update.read_up_to ?? 0),
-                      },
-                ),
-              },
+          c.members.some((m) => m.user_id === user_id)
+            ? { ...c, members: c.members.map((m) => (m.user_id === user_id ? { ...m, online, last_seen } : m)) }
+            : c,
         ),
+        contacts: state.contacts.map((c) => (c.user_id === user_id ? { ...c, last_seen } : c)),
       })),
 
     handleEvent: (event) => {
@@ -265,6 +392,14 @@ export const useAppStore = create<AppState>()((set, get) => {
           break;
         case "receipt_update":
           get().applyReceipt(event.data);
+          break;
+        case "typing":
+          if (event.data.user_id !== get().meId) {
+            get().setTyping(event.data.conversation_id, event.data.user_id, event.data.is_typing);
+          }
+          break;
+        case "presence":
+          get().applyPresence(event.data);
           break;
       }
     },

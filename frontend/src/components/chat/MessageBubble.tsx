@@ -1,7 +1,7 @@
 import { Avatar } from "@/components/Avatar";
 import { MessageStatus } from "@/components/chat/MessageStatus";
 import type { Member } from "@/lib/api";
-import { colorForUser } from "@/lib/avatars";
+import { colorIndex } from "@/lib/avatars";
 import { memberName } from "@/lib/conversations";
 import type { ChatMessage, MessageStatus as Status } from "@/lib/receipts";
 import { messageTime } from "@/lib/time";
@@ -57,8 +57,9 @@ export function MessageBubble({
             mine ? "bg-bubble-out text-on-bubble-out" : "bg-bubble-in text-on-bubble-in"
           } ${message.local === "sending" ? "opacity-80" : ""}`}
         >
+          {/* Name color: per-theme --sg-sender-N token (>= 4.5:1 on the incoming bubble). */}
           {isGroup && !mine && firstInRun && sender && (
-            <p className="text-caption font-semibold" style={{ color: colorForUser(sender.user_id).fg }}>
+            <p className="text-caption font-semibold" style={{ color: `var(--sg-sender-${colorIndex(sender.user_id)})` }}>
               {memberName(sender)}
             </p>
           )}

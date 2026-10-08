@@ -12,6 +12,7 @@ export function ConversationList({ meId, onNewChat }: Props) {
   const error = useAppStore((s) => s.error);
   const conversations = useAppStore((s) => s.conversations);
   const activeId = useAppStore((s) => s.activeConversationId);
+  const typing = useAppStore((s) => s.typing);
   const load = useAppStore((s) => s.load);
 
   if (status === "idle" || status === "loading") {
@@ -41,7 +42,13 @@ export function ConversationList({ meId, onNewChat }: Props) {
   return (
     <nav aria-label="Conversations" className="flex flex-col pb-2">
       {conversations.map((c) => (
-        <ConversationListItem key={c.id} conversation={c} meId={meId} selected={c.id === activeId} />
+        <ConversationListItem
+          key={c.id}
+          conversation={c}
+          meId={meId}
+          selected={c.id === activeId}
+          typing={Object.keys(typing[c.id] ?? {}).length > 0}
+        />
       ))}
     </nav>
   );

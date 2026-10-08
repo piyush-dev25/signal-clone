@@ -14,8 +14,13 @@ const AVATAR_COLORS = [
   { bg: "#D7D7D9", fg: "#5C5C5C" },
 ];
 
+/** Index into the 12-color palette; also selects --sg-sender-N for names in group chats. */
+export function colorIndex(userId: number): number {
+  return Math.abs(userId) % AVATAR_COLORS.length;
+}
+
 export function colorForUser(userId: number) {
-  return AVATAR_COLORS[Math.abs(userId) % AVATAR_COLORS.length];
+  return AVATAR_COLORS[colorIndex(userId)];
 }
 
 export function initials(name: string): string {

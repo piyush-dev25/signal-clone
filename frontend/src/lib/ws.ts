@@ -16,7 +16,11 @@ type Handlers = {
   onEvent: (event: ServerEvent) => void;
 };
 
-export type RealtimeConnection = { close: () => void };
+export type RealtimeConnection = {
+  /** Send a client event; returns false (and drops it) when not connected. */
+  send: (type: string, data: Record<string, unknown>) => boolean;
+  close: () => void;
+};
 
 /**
  * The app's one socket. Reconnects with exponential backoff (0.5s doubling, capped at 15s, ±20%
@@ -100,6 +104,11 @@ export function connectRealtime(token: string, handlers: Handlers): RealtimeConn
   connect();
 
   return {
+    send(type, data) {
+      if (socket?.readyState !== WebSocket.OPEN) return false;
+      socket.send(JSON.stringify({ type, data }));
+      return true;
+    },
     close() {
       stopped = true;
       window.removeEventListener("online", onOnline);

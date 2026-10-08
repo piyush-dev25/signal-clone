@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useLayoutEffect, useRef } from "react";
+import { Avatar } from "@/components/Avatar";
 import { MessageBubble } from "@/components/chat/MessageBubble";
 import { Button } from "@/components/ui";
 import type { Conversation } from "@/lib/api";
@@ -58,13 +59,48 @@ function buildRows(messages: ChatMessage[], conversation: Conversation, meId: nu
   return rows;
 }
 
-type ScrollSnapshot = { conversationId: number; first: string | null; last: string | null; height: number; top: number };
+type ScrollSnapshot = {
+  conversationId: number;
+  first: string | null;
+  last: string | null;
+  typing: number;
+  height: number;
+  top: number;
+};
+
+/** Incoming-style bubble with three pulsing dots while someone else is typing. */
+function TypingBubble({ conversation, userId }: { conversation: Conversation; userId: number }) {
+  const sender = conversation.members.find((m) => m.user_id === userId);
+  const isGroup = conversation.type === "group";
+  return (
+    <div className="mt-2 flex justify-start px-pane-x" role="status" aria-label="Typing">
+      {isGroup && (
+        <div className="mr-2 flex w-avatar-message shrink-0 items-end">
+          {sender && (
+            <Avatar colorId={sender.user_id} name={sender.display_name} avatar={sender.avatar} size="message" />
+          )}
+        </div>
+      )}
+      <div className="flex items-center gap-1 rounded-bubble bg-bubble-in px-3.5 py-3">
+        {[0, 1, 2].map((i) => (
+          <span
+            key={i}
+            className="size-typing-dot animate-typing rounded-full bg-on-bubble-in"
+            style={{ animationDelay: `${i * 0.2}s` }}
+          />
+        ))}
+      </div>
+    </div>
+  );
+}
 
 export function MessageList({ conversation, meId }: { conversation: Conversation; meId: number }) {
   const chat = useAppStore((s) => s.messagesByConversation[conversation.id]);
   const loadLatest = useAppStore((s) => s.loadLatest);
   const loadOlder = useAppStore((s) => s.loadOlder);
   const retryMessage = useAppStore((s) => s.retryMessage);
+  const typingMap = useAppStore((s) => s.typing[conversation.id]);
+  const typingIds = Object.keys(typingMap ?? {}).map(Number);
   const scrollRef = useRef<HTMLDivElement>(null);
   const nearBottom = useRef(true);
   const snapshot = useRef<ScrollSnapshot | null>(null);
@@ -92,9 +128,18 @@ export function MessageList({ conversation, meId }: { conversation: Conversation
       el.scrollTop = prev.top + (el.scrollHeight - prev.height); // older page prepended: stay put
     } else if (last !== prev.last && (nearBottom.current || lastMessage?.sender_id === meId)) {
       el.scrollTop = el.scrollHeight; // new message: follow if we were at the bottom or it's ours
+    } else if (typingIds.length !== prev.typing && nearBottom.current) {
+      el.scrollTop = el.scrollHeight; // keep the typing bubble in view
     }
-    snapshot.current = { conversationId: conversation.id, first, last, height: el.scrollHeight, top: el.scrollTop };
-  }, [messages, conversation.id, meId]);
+    snapshot.current = {
+      conversationId: conversation.id,
+      first,
+      last,
+      typing: typingIds.length,
+      height: el.scrollHeight,
+      top: el.scrollTop,
+    };
+  }, [messages, conversation.id, meId, typingIds.length]);
 
   function onScroll() {
     const el = scrollRef.current;
@@ -159,6 +204,7 @@ export function MessageList({ conversation, meId }: { conversation: Conversation
           />
         );
       })}
+      {typingIds.length > 0 && <TypingBubble conversation={conversation} userId={typingIds[0]} />}
     </div>
   );
 }

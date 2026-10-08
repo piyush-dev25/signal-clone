@@ -5,15 +5,10 @@ from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from app.models import Conversation, ConversationMember, Message, User
+from app.models import Message, User
 from app.schemas.message import MessageOut, ReplyToOut
-from app.services.errors import BadRequest, NotFound, ServiceError
-from app.services.receipts import member_ids
-
-
-class NotAMember(ServiceError):
-    status_code = 403
-    detail = "You're not a member of this conversation"
+from app.services.errors import BadRequest
+from app.services.membership import member_ids, require_member
 
 
 @dataclass
@@ -50,16 +45,6 @@ def to_message_out(db: Session, messages: Sequence[Message]) -> list[MessageOut]
             )
         )
     return out
-
-
-def require_member(db: Session, user: User, conversation_id: int) -> ConversationMember:
-    """404 if the conversation doesn't exist, 403 if the user isn't in it."""
-    if db.get(Conversation, conversation_id) is None:
-        raise NotFound("Conversation not found")
-    member = db.get(ConversationMember, (conversation_id, user.id))
-    if member is None:
-        raise NotAMember()
-    return member
 
 
 def _existing(db: Session, sender_id: int, client_id: str) -> Message | None:

@@ -8,11 +8,13 @@ type Props = {
   conversation: Conversation;
   meId: number;
   selected: boolean;
+  /** Someone is typing here: the preview becomes "typing…". */
+  typing?: boolean;
   onSelect?: () => void;
 };
 
 /** Signal list row: avatar | name + time / preview + unread badge. */
-export function ConversationListItem({ conversation, meId, selected, onSelect }: Props) {
+export function ConversationListItem({ conversation, meId, selected, typing = false, onSelect }: Props) {
   const unread = conversation.unread_count;
   const time = conversation.last_message?.created_at ?? null;
 
@@ -22,7 +24,10 @@ export function ConversationListItem({ conversation, meId, selected, onSelect }:
       onClick={onSelect}
       aria-current={selected ? "page" : undefined}
       className={`mx-list-inset flex h-list-item items-center gap-3 rounded-list-item px-row-x transition-colors ${
-        selected ? "bg-selected" : "hover:bg-hover"
+        // --dot-ring keeps the online dot's ring matched to the row background.
+        selected
+          ? "bg-selected [--dot-ring:var(--color-selected)]"
+          : "[--dot-ring:var(--color-sidebar)] hover:bg-hover hover:[--dot-ring:var(--color-hover)]"
       }`}
     >
       <ConversationAvatar conversation={conversation} meId={meId} size="list" />
@@ -38,9 +43,13 @@ export function ConversationListItem({ conversation, meId, selected, onSelect }:
           )}
         </div>
         <div className="mt-0.5 flex items-center gap-2">
-          <p className={`flex-1 truncate text-body-sm ${unread ? "font-medium text-fg" : "text-fg-secondary"}`}>
-            {previewText(conversation, meId)}
-          </p>
+          {typing ? (
+            <p className="flex-1 truncate text-body-sm text-accent">typing…</p>
+          ) : (
+            <p className={`flex-1 truncate text-body-sm ${unread ? "font-medium text-fg" : "text-fg-secondary"}`}>
+              {previewText(conversation, meId)}
+            </p>
+          )}
           {unread > 0 && (
             <span
               aria-label={`${unread} unread`}

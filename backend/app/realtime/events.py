@@ -15,6 +15,7 @@ from app.db import SessionLocal
 from app.realtime.manager import manager
 from app.schemas.message import MessageOut
 from app.services import receipts
+from app.services.membership import is_member, member_ids
 from app.services.messages import SendResult
 
 
@@ -41,6 +42,11 @@ def schedule_message_new(background: BackgroundTasks, db: Session, result: SendR
     background.add_task(_push_message_new, result.member_ids, result.message, updates)
 
 
+def schedule_push(background: BackgroundTasks, user_ids: set[int], type_: str, data: dict[str, Any]) -> None:
+    """Push one event after the response is sent (from a sync REST handler)."""
+    background.add_task(push, user_ids, type_, data)
+
+
 def _deliver_all(user_id: int) -> list[receipts.ReceiptPush]:
     with SessionLocal() as db:
         return receipts.deliver_all(db, user_id)
@@ -50,3 +56,22 @@ async def user_connected(user_id: int) -> None:
     """A socket opened: everything already in the user's conversations is now delivered."""
     for members, update in await run_in_threadpool(_deliver_all, user_id):
         await push(members, "receipt_update", update)
+
+
+def _typing_audience(user_id: int, conversation_id: int) -> set[int] | None:
+    with SessionLocal() as db:
+        if not is_member(db, user_id, conversation_id):
+            return None
+        return member_ids(db, conversation_id) - {user_id}
+
+
+async def relay_typing(user_id: int, data: Any) -> None:
+    """Client typing event -> the conversation's other members. Never stored; non-members ignored."""
+    if not isinstance(data, dict):
+        return
+    conversation_id, is_typing = data.get("conversation_id"), data.get("is_typing")
+    if type(conversation_id) is not int or not isinstance(is_typing, bool):
+        return
+    audience = await run_in_threadpool(_typing_audience, user_id, conversation_id)
+    if audience:
+        await push(audience, "typing", {"conversation_id": conversation_id, "user_id": user_id, "is_typing": is_typing})

@@ -83,11 +83,19 @@ export type ReceiptUpdate = {
   read_up_to?: number;
 };
 
+export type TypingEvent = { conversation_id: number; user_id: number; is_typing: boolean };
+
+export type PresenceEvent = { user_id: number; online: boolean; last_seen: string | null };
+
 /** Server → client WebSocket envelopes (unknown types are ignored). */
 export type ServerEvent =
   | { type: "message_new"; data: Message }
   | { type: "receipt_update"; data: ReceiptUpdate }
+  | { type: "typing"; data: TypingEvent }
+  | { type: "presence"; data: PresenceEvent }
   | { type: "pong"; data: Record<string, never> };
+
+export type ReadCursors = { conversation_id: number; last_read: number; last_delivered: number };
 
 export class ApiError extends Error {
   readonly status: number;
@@ -171,3 +179,7 @@ export const postMessage = (
   conversationId: number,
   message: { client_id: string; body: string; reply_to_id?: number | null },
 ) => api<Message>(`/conversations/${conversationId}/messages`, { method: "POST", body: message });
+
+/** Move my read cursor (the server clamps to the latest message and never moves it back). */
+export const markRead = (conversationId: number, messageId: number) =>
+  api<ReadCursors>(`/conversations/${conversationId}/read`, { method: "POST", body: { message_id: messageId } });

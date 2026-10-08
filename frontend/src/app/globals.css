@@ -47,6 +47,22 @@
   --sg-quote-in: rgb(0 0 0 / 0.06);
   --sg-quote-bar-out: #ffffff;
   --sg-quote-bar-in: #2c6bed;
+  --sg-online: #2fb35a;
+
+  /* Group sender names on incoming bubbles, indexed like the avatar colors (lib/avatars.ts).
+     Each is >= 4.5:1 against --sg-bubble-in in its theme. */
+  --sg-sender-0: #3838F5;
+  --sg-sender-1: #1251D3;
+  --sg-sender-2: #086DA0;
+  --sg-sender-3: #067906;
+  --sg-sender-4: #661AFF;
+  --sg-sender-5: #9F00F0;
+  --sg-sender-6: #B8057C;
+  --sg-sender-7: #BE0404;
+  --sg-sender-8: #7E6701;
+  --sg-sender-9: #76683C;
+  --sg-sender-10: #4F4F6D;
+  --sg-sender-11: #5C5C5C;
 
   --sg-shadow-menu: 0 2px 12px rgb(0 0 0 / 0.16), 0 0 0 1px rgb(0 0 0 / 0.04);
   --sg-shadow-dialog: 0 8px 32px rgb(0 0 0 / 0.2);
@@ -89,6 +105,20 @@
   --sg-quote-in: rgb(255 255 255 / 0.08);
   --sg-quote-bar-out: #ffffff;
   --sg-quote-bar-in: #a8c1f7;
+  --sg-online: #3fcf6c;
+
+  --sg-sender-0: #9C9CFA;
+  --sg-sender-1: #84A5E8;
+  --sg-sender-2: #75ADCA;
+  --sg-sender-3: #74B474;
+  --sg-sender-4: #B691FF;
+  --sg-sender-5: #D38AF8;
+  --sg-sender-6: #DE8CC3;
+  --sg-sender-7: #E29191;
+  --sg-sender-8: #B5A667;
+  --sg-sender-9: #AEA689;
+  --sg-sender-10: #A3A3B3;
+  --sg-sender-11: #A7A7A7;
 
   --sg-shadow-menu: 0 2px 12px rgb(0 0 0 / 0.5), 0 0 0 1px rgb(255 255 255 / 0.06);
   --sg-shadow-dialog: 0 8px 32px rgb(0 0 0 / 0.6);
@@ -127,6 +157,7 @@
   --color-quote-in: var(--sg-quote-in);
   --color-quote-bar-out: var(--sg-quote-bar-out);
   --color-quote-bar-in: var(--sg-quote-bar-in);
+  --color-online: var(--sg-online);
 
   --shadow-menu: var(--sg-shadow-menu);
   --shadow-dialog: var(--sg-shadow-dialog);
@@ -189,6 +220,23 @@
   --spacing-avatar-picker: 44px;
   --spacing-avatar-hero: 88px;
   --spacing-avatar-message: 28px; /* beside incoming bubbles in groups */
+  --spacing-online-ring: 2px; /* gap ring around the online dot, in the background color */
+  --spacing-typing-dot: 6px;
+
+  /* Typing indicator: three dots pulsing in turn (animate-typing + staggered delays). */
+  --animate-typing: typing 1.4s ease-in-out infinite;
+  @keyframes typing {
+    0%,
+    60%,
+    100% {
+      opacity: 0.35;
+      transform: translateY(0);
+    }
+    30% {
+      opacity: 1;
+      transform: translateY(-2px);
+    }
+  }
 }
 
 body {

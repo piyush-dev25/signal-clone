@@ -1,11 +1,13 @@
 """Delivered/read cursors. They only ever move forward; reading implies delivery."""
 
 from collections.abc import Iterable
+from dataclasses import dataclass
 
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
-from app.models import ConversationMember, Message
+from app.models import ConversationMember, Message, User
+from app.services.membership import member_ids, require_member
 
 # (member ids of the conversation, receipt_update payload)
 ReceiptPush = tuple[set[int], dict]
@@ -27,12 +29,6 @@ def advance(
         member.last_delivered_message_id = delivered_up_to
         payload["delivered_up_to"] = delivered_up_to
     return payload if len(payload) > 2 else None
-
-
-def member_ids(db: Session, conversation_id: int) -> set[int]:
-    return set(
-        db.scalars(select(ConversationMember.user_id).where(ConversationMember.conversation_id == conversation_id))
-    )
 
 
 def mark_delivered(db: Session, conversation_id: int, message_id: int, user_ids: Iterable[int]) -> list[dict]:
@@ -68,3 +64,26 @@ def deliver_all(db: Session, user_id: int) -> list[ReceiptPush]:
     updates = [u for member, latest_id in rows if (u := advance(member, delivered_up_to=latest_id))]
     db.commit()
     return [(member_ids(db, u["conversation_id"]), u) for u in updates]
+
+
+@dataclass
+class ReadResult:
+    update: dict | None  # receipt_update payload, None when no cursor moved
+    member_ids: set[int]
+    last_read: int
+    last_delivered: int
+
+
+def mark_read(db: Session, user: User, conversation_id: int, message_id: int) -> ReadResult:
+    """Move the reader's read cursor up to message_id (clamped to the conversation's latest
+    message). Forward only; reading also counts as delivery."""
+    member = require_member(db, user, conversation_id)
+    latest = db.scalar(select(func.max(Message.id)).where(Message.conversation_id == conversation_id)) or 0
+    update = advance(member, read_up_to=min(message_id, latest))
+    db.commit()
+    return ReadResult(
+        update=update,
+        member_ids=member_ids(db, conversation_id),
+        last_read=member.last_read_message_id,
+        last_delivered=member.last_delivered_message_id,
+    )

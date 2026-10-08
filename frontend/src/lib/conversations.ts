@@ -84,3 +84,15 @@ export function sortConversations(conversations: Conversation[]): Conversation[]
 export function sortContacts(contacts: Contact[]): Contact[] {
   return [...contacts].sort((a, b) => contactName(a).localeCompare(contactName(b), undefined, { sensitivity: "base" }));
 }
+
+/** "typing…" in a DM; "Ana is typing…", "Ana and Raj are typing…", "Ana and 2 others are typing…" in groups. */
+export function typingText(conversation: Conversation, userIds: number[]): string {
+  if (conversation.type === "direct") return "typing…";
+  const names = userIds.map((id) => {
+    const member = conversation.members.find((m) => m.user_id === id);
+    return member ? memberName(member).split(/\s+/)[0] : "Someone";
+  });
+  if (names.length === 1) return `${names[0]} is typing…`;
+  if (names.length === 2) return `${names[0]} and ${names[1]} are typing…`;
+  return `${names[0]} and ${names.length - 1} others are typing…`;
+}

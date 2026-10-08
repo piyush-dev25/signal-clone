@@ -6,6 +6,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.models import Conversation, ConversationMember, Message, User
+from app.realtime.manager import manager
 from app.schemas.conversation import ConversationOut, MemberOut
 from app.services.contacts import nicknames_for
 from app.services.errors import BadRequest, NotFound
@@ -68,7 +69,7 @@ def _build(db: Session, viewer: User, conversations: Sequence[Conversation]) -> 
                 phone=user.phone,
                 nickname=nicknames.get(user.id),
                 role=member.role,
-                online=False,  # real presence arrives in Phase 4
+                online=manager.is_online(user.id),  # live presence: has an open socket right now
                 last_seen=user.last_seen,
                 last_delivered=member.last_delivered_message_id,
                 last_read=member.last_read_message_id,

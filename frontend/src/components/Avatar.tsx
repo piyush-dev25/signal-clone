@@ -46,7 +46,27 @@ export function Avatar({ colorId, name, avatar, size = "list", group = false }: 
   );
 }
 
-/** Group avatar for groups, the other person's avatar for direct chats. */
+/**
+ * Green presence dot. Its ring uses --dot-ring, which the surrounding row sets to its own
+ * background (sidebar / hover / selected), so the dot looks cut out of the avatar.
+ */
+function OnlineDot({ size }: { size: AvatarSize }) {
+  const dimension = `calc(var(--spacing-avatar-${size}) * 0.26)`;
+  return (
+    <span
+      role="img"
+      aria-label="Online"
+      className="absolute right-0 bottom-0 rounded-full bg-online"
+      style={{
+        width: dimension,
+        height: dimension,
+        boxShadow: "0 0 0 var(--spacing-online-ring) var(--dot-ring, var(--color-surface))",
+      }}
+    />
+  );
+}
+
+/** Group avatar for groups, the other person's avatar (with an online dot) for direct chats. */
 export function ConversationAvatar({
   conversation,
   meId,
@@ -69,11 +89,14 @@ export function ConversationAvatar({
   }
   const other = otherMember(conversation, meId);
   return (
-    <Avatar
-      colorId={other?.user_id ?? conversation.id}
-      name={conversationTitle(conversation, meId)}
-      avatar={other?.avatar ?? null}
-      size={size}
-    />
+    <div className="relative shrink-0">
+      <Avatar
+        colorId={other?.user_id ?? conversation.id}
+        name={conversationTitle(conversation, meId)}
+        avatar={other?.avatar ?? null}
+        size={size}
+      />
+      {other?.online && <OnlineDot size={size} />}
+    </div>
   );
 }
